@@ -1,9 +1,10 @@
 import requests
+import pyowm
 import json
 import pyowm
-from typing import List
+from typing import Tuple, Optional
 
-from src.utils import LOGGER
+from src import LOGGER
 
 
 class OWM_API_Manager:
@@ -13,11 +14,11 @@ class OWM_API_Manager:
         self.units = "metric" # allow the user to change this in settings later on
 
 
-    def initialise_manager(self, api_key) -> str:
+    def initialise_manager(self) -> str:
         # initialise the manager with the api key 
         # -> NOTE: this is used instead of directly requesting the API as it returns more results per location
 
-        return pyowm.OWM(api_key)
+        return pyowm.OWM(self.api_key)
     
 
     def request_api(self, request_url) -> str:
@@ -159,10 +160,10 @@ class RegistryManager(OWM_API_Manager):
         return registry.ids_for(self.location_name, matching='exact') # exact match for now
 
 
-    def get_location_information(self, location_dict) -> List(str, str, str):
+    def get_location_information(self, location_dict) -> Tuple[str, str, Optional[str]]:
         # returns the location information from the dictionary
 
-        return [location_dict['name'], location_dict['country'], location_dict['state']]
+        return location_dict['name'], location_dict['country'], location_dict['state']
     
 
     def is_one_location_result(self, registry) -> bool:

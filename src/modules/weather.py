@@ -85,8 +85,8 @@ async def retrieve_city_registries(update: Update, context: ContextTypes.DEFAULT
         return   
     
     # initialise pyowm manager
-    owm_manager = manager.owm_manager(api_key)
-    owm_manager.initialise_manager()
+    owm_manager = manager.OWM_API_Manager(api_key)
+    owm_manager = owm_manager.initialise_manager()
 
     registry_manager = manager.RegistryManager(owm_manager, location)
     
