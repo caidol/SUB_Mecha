@@ -1,0 +1,10 @@
+newline = "\n"
+whitespace = " "
+tab = "\t"
+
+bold = lambda x: f"**{x}**"
+bold_ul = lambda x: f"__**{x}**__"
+italic = lambda x: f"*{x}*"
+italic_ul = lambda x: f"_*{x}*_"
+underline = lambda x: f"__{x}__"
+mono = lambda x: f"`{x}`"

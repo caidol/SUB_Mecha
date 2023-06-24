@@ -1,0 +1,46 @@
+---
+# Below is the configuration information required for the application
+
+name: "SUB_Mecha"
+description: "A Telegram Utility and Group Management Bot which will provide a range of useful features to users."
+logo: ""
+keywords:
+  - "python-telegram-bot"
+  - "telegram"
+  - "utility bot"
+  - "group bot"
+  - "python"
+  - "sub mecha"
+repository: "https://github.com/caidol/SUB_Mecha"
+
+env: 
+  BOT_TOKEN: 
+    description: "The bot token that can be created and retrieved from @BotFather"
+    value: "6073682346:AAG3nZhKlApMcO6NownG7ExWJQrZqV6uXIg"
+    required: true
+  
+  BOT_USERNAME:
+    description: "The username that you have created for your bot"
+    value: "sub_mecha_bot"
+    required: true
+
+  OWNER_ID:
+    description: "The telegram id of the owner of the bot"
+    value: "5472502746"
+    required: true # might need to change this
+
+  OWNER_USERNAME: 
+    description: "Your telegram username"
+    value: "ai_dan12"
+    required: true
+
+  HEROKU_URL:
+    description: "The Heroku App URL --> Format is https://<appname>.herokuapp.com/"
+    value: "https://git.heroku.com/sub-mecha.git"
+    required: false
+
+  OWM_API_TOKEN:
+    description: "The Open Weather Map API token in order to access weather data."
+    value: "94bcb94a4dc94f8116c87a8d4d105dc7"
+    required: true
+...

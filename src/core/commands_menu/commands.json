@@ -1,0 +1,9 @@
+{
+    "commands": {
+        "start": "start"
+    },
+
+    "descriptions": {
+        "start": "a simple start test script"
+    } 
+}
