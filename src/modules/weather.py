@@ -1,0 +1,677 @@
+import pyowm
+import requests
+import json
+import math
+
+from src import LOGGER, OWM_API_TOKEN, dispatcher
+import src.utils.weather_managers as manager
+
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    CommandHandler, 
+    ContextTypes, 
+    MessageHandler, 
+    ConversationHandler, 
+    CallbackQueryHandler,
+    filters, 
+)
+
+_MODULE_ = "weather"
+_HELP_ = """
+/currentForecast - Get the current weather forecast for a location
+/dayForecast[n] - Get the weather forecast for the next n days (range of n is 1 to 5)
+/hourForecast[n] - Get the weather forecast for the next n 3 HOUR PERIODS (range of n is 1 to 8).
+"""
+
+LOCATION_PARAMETER = range(1)
+
+
+async def request_for_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """entry point to allow the user to specify the location that they wish to send"""
+
+    # first the command will be stored in user_data
+    command = (update.message.text.split(' '))[0]
+    context.user_data["command"] = command
+
+    # now we must specify the message_id
+    message_id = update.message.message_id
+    context.user_data["message_id"] = message_id
+
+    await update.message.reply_text(
+        reply_to_message_id=message_id,
+        text="Please enter your location:",
+    )
+
+    return LOCATION_PARAMETER # receive weather forecast location data
+
+
+async def receive_location_parameter(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """receive the location parameter, ensuring that it's formatted correctly (capitalised)"""
+    location_arguments = update.message.text
+    location = ""
+    location_arguments = list(location_arguments) # to make it mutable
+
+    for index, item in enumerate(location_arguments):
+        #print(index, item)
+        if (index == 0) or (location_arguments[index-1] == ' '):
+            location_arguments[index] = item.upper()
+        else:
+            location_arguments[index] = item.lower()
+
+        location += location_arguments[index]         
+    print(location)
+    
+    # store location in user data dict
+    context.user_data["location"] = location
+
+    # retrieve city registry given location
+    await retrieve_city_registries(update, context, OWM_API_TOKEN)
+
+    return ConversationHandler.END
+    
+
+async def retrieve_city_registries(update: Update, context: ContextTypes.DEFAULT_TYPE, api_key: str) -> None:
+    """retrieve all the registries with cities that have the same name across the world"""
+
+    try:
+        # retrieve location from user data
+        location = context.user_data["location"]
+    except KeyError:
+        # the location does not exist
+        await update.message.reply_text(
+            reply_to_message_id = context.user_data.get("message_id", "not found"),
+            text = "Unable to retrieve the location"
+        )
+        return   
+    
+    # initialise pyowm manager
+    owm_manager = manager.owm_manager(api_key)
+    owm_manager.initialise_manager()
+
+    registry_manager = manager.RegistryManager(owm_manager, location)
+    
+    # retrieve and store the city registries
+    city_registries = registry_manager.get_city_ids()
+    context.chat_data[location] = city_registries
+
+    '''
+    owm = pyowm.OWM(api_key) # owm manager is used because it provides more results in city registry than using geocoder directly from owm api
+    # obtain ids
+    reg = owm.city_id_registry()
+    print("location: ", location)    
+
+    # store city registries
+    city_registries = reg.ids_for(location, matching='exact') # will exact match
+    context.chat_data[location] = city_registries
+
+    #print(city_registries)
+    print("list: ", city_registries)
+    '''
+    # parse the city registry information together and store in payload or present to end-user
+    await parse_city_registry_information(update, context)
+    
+
+async def parse_city_registry_information(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """parse all the registry information of cities with the same name across the world"""
+
+    # check to ensure that the location key exists
+    try:
+        # retrieve location and city registries from user data
+        location = context.user_data["location"]
+        city_registries = context.chat_data[location]
+    except KeyError:
+        # location does not exist
+        await update.message.reply_text(
+            reply_to_message_id = context.user_data.get("message_id", "not found"),
+            text = "Unable to retrieve the location",
+        )
+        return
+    
+    """if the location only exists in one place then the location"""
+    if is_one_city_registry(city_registries): # check to see how many returned results are provided.
+        city_id = city_registries[0][0]
+        name = city_registries[0][1]
+        country = city_registries[0][2]   
+        if check_if_state_available(city_registries, 0): 
+            state = city_registries[0][3] 
+        else:
+            state = ''
+        lat = city_registries[0][4]
+        lon = city_registries[0][5]    
+        
+        # create payload for location information
+        global payload_user_id
+        payload_user_id = update.effective_user.id
+
+        payload = {
+            payload_user_id: {
+                "city_id": city_id,
+                "name": name,
+                "country": country,
+                "state": state,
+                "lat": lat,
+                "lon": lon,
+            }
+        }
+        context.user_data.update(payload)
+        await receive_forecast_command(update, context)
+
+    else: # more than 1 result
+        all_city_registries = []
+
+        for i in range(len(city_registries)):
+            #print("i: ", city_registries[i])
+            current_id = city_registries[i][0]
+            name = city_registries[i][1]
+            country = city_registries[i][2]
+
+            if check_if_state_available(city_registries, i): 
+                state = city_registries[i][3] 
+            else:
+                state = ''
+
+            lat = city_registries[i][4]
+            lon = city_registries[i][5]
+
+            all_city_registries.append([current_id, name, country, state, lat, lon]) # append location information
+
+        #print("All city registries: ", all_city_registries)
+        bot_message = ""
+        bot_message += "It appears that there's more than one location with this name."
+        bot_message += "\nPlease select one of the options below\n\n"
+
+        keyboard = []
+        count = 0
+
+        while count < len(all_city_registries):
+            if all_city_registries[count][3] == '':
+                keyboard.append([InlineKeyboardButton(f"{city_registries[count][1]}|{city_registries[count][2]}", callback_data=city_registries[count][0])])
+            else:
+                keyboard.append([InlineKeyboardButton(f"{city_registries[count][1]}|{city_registries[count][2]}|{city_registries[count][3]}", callback_data=city_registries[count][0])])
+
+            count += 1   
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        #print(bot_message)
+
+        # send the inlinekeyboard message
+        await update.message.reply_text(
+            reply_to_message_id = context.user_data.get("message_id", "not found"),
+            text = bot_message, 
+            reply_markup=reply_markup,
+        )
+
+
+async def collect_callback_registry_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """the callback function that is called if more than one option is presented in order to retrieve the chosen data."""
+
+    # retrieve the current city location
+    try:
+        location = context.user_data["location"]
+        #print(location)
+    except TypeError:
+        await update.message.reply_text(
+            reply_to_message_id=context.user_data.get("message_id", "not found"),
+            text="Unable to retrieve the location.",
+        )
+
+    query = update.callback_query
+    # Callback Queries need to be answered, even if no notification to the user is needed
+    await query.answer()
+
+    try:
+        city_id = query.data
+        print(city_id)
+        city_registries = context.chat_data[location]
+    except TypeError: # unable to retrieve the city registries
+        await update.callback_query.message.reply_text(
+            reply_to_message_id=context.user_data.get("message_id", "not found"),
+            text="Unable to retrieve the city registries.",
+        )
+        return
+    
+    #retrieve the respective city registry given the id
+    for i in range(len(city_registries)):
+        if int(city_registries[i][0]) == int(city_id): # city registry was found
+            name = city_registries[i][1]
+            country = city_registries[i][2]
+            state = city_registries[i][3]
+            lat = city_registries[i][4]
+            lon = city_registries[i][5]
+    #print(name, country, state, lat, lon)
+
+    # create payload for location information
+    
+    try:
+        global payload_user_id
+        payload_user_id = update.callback_query.from_user.id
+        payload = {
+            payload_user_id: {
+                "city_id": city_id,
+                "name": name,
+                "country": country,
+                "state": state,
+                "lat": lat,
+                "lon": lon,
+            }
+        }
+        context.user_data.update(payload)
+
+    except NameError:
+        await update.callback_query.message.reply_text(
+            text="Unable to find the specified city registry.",
+        )
+        return
+    
+    await receive_forecast_command(update, context)
+
+
+async def receive_forecast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """This function is called after the user has chosen the location and is now ready to receive the forecast command."""
+
+    try:
+        command = context.user_data.get("command")
+        #print(command)
+    except KeyError:
+        await update.message.reply_text(
+            reply_to_message_id = context.user_data.get("message_id", "not found"),
+            text = "Unable to retrieve stored command phrase."
+        )
+        return
+    
+    # handle the specific call of procedures depending on the command
+    if command == "/currentForecast":
+        await receive_current_forecast_data(update, context)
+    else:
+        """In this case, we must check the duration from the command and what type of command it is."""
+
+        command, duration = command[0:-1], command[-1]
+        print(command, duration)
+
+        # now we must store the command and its duration command into user data
+        forecast_command_information = [command, duration]
+        context.user_data["forecast_command_info"] = forecast_command_information
+
+        if command == "/dayForecast" or command == "/hourForecast":
+            await receive_daily_forecast_data(update, context)
+
+
+async def receive_current_forecast_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """retrieve the data for the current weather forecast"""
+
+    try:
+        location_dict = context.user_data.get(payload_user_id)
+        print(location_dict)
+    except KeyError:
+        await update.message.reply_text(
+            reply_to_message_id = context.user_data.get("message_id", "not found"),
+            text="Unable to retrieve location information."
+        )
+    
+    # retrieve the location information
+    name = location_dict['name']
+    country, state = location_dict['country'], location_dict['state']
+    lat, lon = location_dict['lat'], location_dict['lon']
+    
+    response = requests.get(f'https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&appid={OWM_API_TOKEN}')
+
+    try:
+        if successfully_retrieved_page(response): # valid response
+            # parse the json data
+            forecast_json_data = json.loads(response.text)
+            #print(forecast_json_data)
+            main_data = forecast_json_data["main"]
+            description = forecast_json_data["weather"][0]["description"]
+            wind_data = forecast_json_data["wind"]
+
+            temp, temp_min, temp_max = main_data["temp"], main_data["temp_min"], main_data["temp_max"]
+            humidity, windspeed = main_data["humidity"], wind_data["speed"]
+
+            payload = {
+                "current_weather": {
+                    "location_name": name,
+                    "country": country,
+                    "state": state,
+                    "description": description,
+                    "current_temp": temp,
+                    "min_temp": temp_min,
+                    "max_temp": temp_max,
+                    "humidity": humidity,
+                    "windspeed": windspeed
+                }
+            }
+
+            context.user_data.update(payload)
+        else:
+            await update.message.reply_text(
+                reply_to_message_id = context.user_data.get("message_id", "not found"),
+                text = "Unable to retrieve the weather data html page."
+            )
+            return
+        
+    except NameError:
+        await update.message.reply_text(
+            reply_to_message_id = context.user_data.get("message_id", "not found"),
+            text = "There was an issue with retrieving the weather data from the weather API."
+        )
+        return
+    
+    await output_current_weather_data(update, context)
+
+
+async def output_current_weather_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """the function that will retrieve the final current weather information and output it to the user"""
+
+    # attempt to receive the current weather data
+    try:
+        weather_data = context.user_data.get("current_weather", "not found")
+    except KeyError:
+        await update.message.reply_text(
+            reply_to_message_id = context.user_data.get("message_id", "not found"),
+            text = "Unable to retrieve the current weather data from context."
+        )
+        return
+    
+    message = ""
+
+    if weather_data["state"] != None:
+        message += f"WEATHER INFORMATION: {weather_data['location_name']}, {weather_data['country']}, {weather_data['state']}\n\t"
+    else:
+        message += f"WEATHER INFORMATION: {weather_data['location_name']}, {weather_data['country']}\n\t"
+
+    message += f"""
+    current_status -> {weather_data["description"]}
+    current_temp -> {math.ceil(weather_data["current_temp"])}°C
+    min temp -> {math.ceil(weather_data["min_temp"])}°C
+    max temp -> {math.ceil(weather_data["max_temp"])}°C
+    humidity -> {weather_data["humidity"]}%rh
+    wind speed -> {math.ceil(weather_data["windspeed"])}mph
+    """
+    #print(message)
+
+    if update.message is None:
+        await update.callback_query.message.reply_text(
+            reply_to_message_id = context.user_data.get("message_id", "not found"),
+            text = message
+        )
+
+    else:
+        await update.message.reply_text(
+            reply_to_message_id = context.user_data.get("message_id", "not found"),
+            text = message
+        )
+
+
+async def receive_daily_forecast_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """retrieve the weather forecast for a location that specifies the conditions over the next few days"""
+
+    # we'll start by attempting to receive the location information that was parsed into a payload earlier
+    try:
+        location_information = context.user_data.get(payload_user_id)
+        #print(location_information)
+    except KeyError:
+        await update.message.reply_text(
+            reply_to_message_id = context.user_data.get("message_id", "not found"),
+            text="Unable to retrieve location information."
+        )
+
+    # next we'll try to attempt to receive the duration for the forecast command that was stored in user context
+    try:
+        command = context.user_data.get("forecast_command_info")[0]
+        print(command)
+        duration = int(context.user_data.get("forecast_command_info")[1])
+        print(duration)
+    except KeyError:
+        await update.message.reply_text(
+            reply_to_message_id = context.user_data.get("message_id", "not found"),
+            text = "Unable to retrieve the stored duration of the forecast command."
+        )
+
+    # retrieve the location information
+    name = location_information['name']
+    country, state = location_information['country'], location_information['state']
+    lat, lon = location_information['lat'], location_information['lon']
+    
+    if command == "/dayForecast":
+        cnt = 8 * duration
+    elif command == "/hourForecast":
+        cnt = duration
+
+    print(cnt)
+
+    response = requests.get(f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&units=metric&cnt={cnt}&appid={OWM_API_TOKEN}")
+    
+    try:
+        if successfully_retrieved_page(response):
+            #print(response.text)
+            # parse the json data
+            forecast_json_data = json.loads(response.text)
+            forecast_list = forecast_json_data["list"]
+            forecast_payload = {}
+            #print(int(cnt/duration))
+
+            if command == "/dayForecast":
+                condition = int(cnt/8)
+            elif command == "/hourForecast":
+                condition = int(cnt)
+
+            for index in range(condition):
+                #print("index: ", (8 * index))
+
+                if command == "/dayForecast":
+                    dt_text = forecast_list[(8*index)]["dt_txt"].split(' ')[0]
+                    print(dt_text)
+
+                    number_of_hourly_periods = 8 * index
+                    hour_period_condition = (8 * (index + 1))
+                elif command == "/hourForecast":
+                    dt_text = f"{forecast_list[(index)]['dt_txt'].split(' ')[0]} {forecast_list[(index)]['dt_txt'].split(' ')[1]}"
+                    print(dt_text)
+
+                    number_of_hourly_periods = index
+                    hour_period_condition = cnt
+
+                total_temp = total_humidity = total_wind_speed = 0
+                                
+                while number_of_hourly_periods < hour_period_condition:
+                    #print(number_of_hourly_periods)
+                    # data type ideas for this data
+                    # {"dt_text" [avg_temp, avg_humidity, avg_wind_speed, min_temp, max_temp]
+
+
+                    #print(number_of_hourly_periods, year, month, day)
+                    # increment the number of periods in that day to help and work out the average temperature
+
+                    temp = forecast_list[number_of_hourly_periods]["main"]["temp"]
+                    humidity = forecast_list[number_of_hourly_periods]["main"]["humidity"]
+                    wind_speed = forecast_list[number_of_hourly_periods]["wind"]["speed"]
+
+                    current_min_temp = forecast_list[number_of_hourly_periods]["main"]["temp_min"]
+                    current_max_temp = forecast_list[number_of_hourly_periods]["main"]["temp_max"]
+
+                    # add to the total values to help before calculatng an average
+                    total_temp, total_humidity, total_wind_speed = (total_temp + temp), total_humidity + humidity, (total_wind_speed + wind_speed)
+                    
+                    if command == "/dayForecast":
+                        should_set_temp_range = (number_of_hourly_periods == 0) or (number_of_hourly_periods % 8 == 0)
+                    elif command == "/hourForecast":
+                        should_set_temp_range = number_of_hourly_periods == 0
+
+                    if should_set_temp_range: # it is on the first iteration of each change in index
+                        # first set the min/max temps that can be compared to later values to determine whether they are smaller or greater than the previous
+                        min_temp = current_min_temp
+                        max_temp = current_max_temp
+                    else:
+                        # in other cases we will compare the different values to see whether they are higher or lower than before
+                        #print("min temp, current_min_temp: ", min_temp, current_min_temp)
+                        if min_temp > current_min_temp:
+                            min_temp = current_min_temp
+                        
+                        #print("max temp, current_max_temp: ", max_temp, current_max_temp)
+                        if max_temp < current_max_temp:
+                            max_temp = current_max_temp
+                    
+                    #print(total_temp, total_humidity, total_wind_speed, min_temp, max_temp)
+                    number_of_hourly_periods += 1 
+
+                # average out each of the values
+                avg_temp = math.ceil(total_temp / 8)
+                avg_humidity = math.ceil(total_humidity / 8)
+                avg_wind_speed = math.ceil(total_wind_speed / 8)
+                #print(avg_temp)
+                #print(avg_humidity)
+                #print(avg_wind_speed)
+
+                forecast_payload[dt_text] = {
+                    "avg_temp": avg_temp, 
+                    "avg_humidity": avg_humidity, 
+                    "avg_wind_speed": avg_wind_speed, 
+                    "min_temp": math.ceil(min_temp),
+                    "max_temp": math.ceil(max_temp)
+                    }
+                #print(forecast_payload)
+
+            payload = {
+            "name": name,
+            "country": country,
+            "state": state,
+            "weather_forecast": forecast_payload
+            }                        
+            # store the forecast
+            context.user_data.update(payload)
+        else:
+            pass # TODO work on this after
+
+    except NameError:
+        await update.message.reply_text(
+            reply_to_message_id = context.user_data.get("message_id", "not found"),
+            text = "There was an issue with retrieving the forecast data from the weather API."
+        )
+        return
+    
+    await output_weather_forecast(update, context)
+
+
+async def output_weather_forecast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """this is the function that will output the weather forecast for the chosen location"""
+
+    # first attempt to retrieve the stored forecast data
+    try:
+        forecast_payload = context.user_data.get("weather_forecast", "not found")
+        name = context.user_data.get("name", "not found")
+        country = context.user_data.get("country", "not found")
+        state = context.user_data["state"]
+    except KeyError:
+        await update.message.reply_text(
+            "Unable to retrieve the current forecast data from context."
+        )
+        return
+    
+    #print(forecast_payload)
+    if state == None:
+        message = f"WEATHER FORECAST INFORMATION:\n{name}|{country}\n"
+    else:
+        message = f"WEATHER FORECAST INFORMATION:\n{name}|{country}|{state}\n"
+    
+    for key, item in forecast_payload.items():
+        #print(items, keys)
+        message += f"\n{key}:\n"
+        message += f"Avg temp: {item['avg_temp']}\n"
+        message += f"Min temp / Max temp: {item['min_temp']}/{item['max_temp']}\n"
+        message += f"Avg humidity: {item['avg_humidity']}%rh, Avg wind speed: {item['avg_wind_speed']}mph\n"   
+    #print(message)
+    if update.message is None:
+        await update.callback_query.message.reply_text(
+            reply_to_message_id = context.user_data.get("message_id", "not found"),
+            text = message
+        )
+    else:
+        await update.message.reply_text(
+            reply_to_message_id = context.user_data.get("message_id", "not found"),
+            text = message
+        )
+
+
+async def retrieve_geocodes(update: Update, context: ContextTypes.DEFAULT_TYPE, location_name, api_key: str) -> None:
+    # initialise pyowm manager
+    print("Hello")
+    owm = pyowm.OWM(OWM_API_TOKEN)
+    manager = owm.weather_manager()
+    print("location: ", location_name)
+
+    # obtain ids
+    reg = owm.city_id_registry()
+
+    # get the city ID given its name
+    global city_registries
+    city_registries = reg.ids_for(location_name, matching='exact') # will exact check
+
+    print(city_registries)
+
+
+def is_one_city_registry(registry):
+    """return true if there is only one available city register"""
+    if len(registry) == 1:
+        return True
+    
+    return False
+
+
+def check_if_state_available(data, iteration):
+    """return true if the value for the state is not -> None"""
+    if data[iteration][3] != None:
+        return True
+    
+    return False
+
+
+# Currently doesn't work
+def successfully_retrieved_page(response) -> None:
+    if response.status_code == 200:
+        return True
+    
+    return False
+
+
+async def cancel_weather(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """cancels and ends the conversation."""
+    user = update.message.from_user # user id
+    LOGGER.info("User %s cancelled the conversation.")
+    # send message below with information
+    await update.message.reply_text(
+        f"That's alright {user}! Just call the necessary command if you'd like to retrieve weather information again."
+    )
+
+    return ConversationHandler.END # return the end of the conversation
+
+
+def main():
+    # Add necessary conversation handlers with multiple states
+    weather_forecast_handler = ConversationHandler(
+        entry_points=[
+            CommandHandler("currentForecast", request_for_location),                # Handle entry point for the current forecast
+            CommandHandler("dayForecast2", request_for_location),                   # Handle entry point for a 2 day forecast
+            CommandHandler("dayForecast3", request_for_location),                   # Handle entry point for a 3 day forecast
+            CommandHandler("dayForecast4", request_for_location),                   # Handle entry point for a 4 day forecast
+            CommandHandler("dayForecast5", request_for_location),                   # Handle entry point for a 5 day forecast
+            CommandHandler("hourForecast1", request_for_location),                  # Handle entry point for a 1 3 hour step forecast
+            CommandHandler("hourForecast2", request_for_location),                  # Handle entry point for a 2 3 hour step forecast
+            CommandHandler("hourForecast3", request_for_location),                  # Handle entry point for a 3 3 hour step forecast
+            CommandHandler("hourForecast4", request_for_location),                  # Handle entry point for a 4 3 hour step forecast
+            CommandHandler("hourForecast5", request_for_location),                  # Handle entry point for a 5 3 hour step forecast
+            CommandHandler("hourForecast6", request_for_location),                  # Handle entry point for a 6 3 hour step forecast
+            CommandHandler("hourForecast7", request_for_location),                  # Handle entry point for a 7 3 hour step forecast
+            CommandHandler("hourForecast8", request_for_location)                   # Handle entry point for a 8 3 hour step forecast
+        ],
+        states={
+            LOCATION_PARAMETER: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_location_parameter)]
+        },
+        fallbacks=[CommandHandler("cancel", cancel_weather)]
+    )
+    dispatcher.add_handler(weather_forecast_handler)
+    dispatcher.add_handler(CallbackQueryHandler(collect_callback_registry_data))
+    dispatcher.run_polling()     # leave as a comment for the actual program to run this in the main function
+
+
+if __name__ == '__main__':
+    main()
