@@ -1,15 +1,23 @@
-from telegram import ( # telegram module imports
-    KeyboardButton, KeyboardButtonPollType, Poll,
-    ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
-)
+from src import dispatcher, LOGGER
 
+from telegram import ( # telegram module imports
+    KeyboardButton, 
+    KeyboardButtonPollType, 
+    Poll,
+    ReplyKeyboardMarkup, 
+    ReplyKeyboardRemove, 
+    Update
+)
 from telegram.constants import ParseMode
 from telegram.ext import ( # telegram.ext module imports
-    CommandHandler, ContextTypes, MessageHandler,
-    PollAnswerHandler, PollHandler, ConversationHandler, filters
+    CommandHandler, 
+    ContextTypes, 
+    MessageHandler,
+    PollAnswerHandler,
+    PollHandler, 
+    ConversationHandler, 
+    filters
 )
-
-from __init__ import dispatcher, LOGGER
 
 _MODULE_ = "Poll/Quiz"
 _HELP = """
@@ -29,7 +37,7 @@ POLL_QUESTION, POLL_ANSWERS = range(2) # for poll creation
 QUIZ_QUESTION, QUIZ_ANSWERS, CORRECT_ANSWER = range(3) # for quiz creation
 
 
-async def configure_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # start poll config
+async def configure_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # start poll config
     if str(update.effective_chat.id)[0] == '-': # check if chat is a group
         await update.message.reply_text(
             # force user to run the command in a PM
@@ -50,7 +58,7 @@ async def configure_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return POLL_QUESTION # receive poll question data
 
 
-async def poll_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # receive poll question
+async def poll_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # receive poll question
     global poll_question
     poll_question = update.message.text # update message
 
@@ -67,7 +75,7 @@ async def poll_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     return POLL_ANSWERS # receive poll answer data
 
 
-async def poll_answers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # receive poll answers
+async def poll_answers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # receive poll answers
     global poll_answers
     poll_answers = update.message.text # update message
 
@@ -87,7 +95,7 @@ async def poll_answers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     return ConversationHandler.END # return the end of the conversation
 
 
-async def configure_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # start quiz config
+async def configure_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # start quiz config
     if str(update.effective_chat.id)[0] == '-':
         await update.message.reply_text(
             """
@@ -105,7 +113,7 @@ async def configure_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return QUIZ_QUESTION # receive quiz question data
 
 
-async def quiz_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # receive quiz question
+async def quiz_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # receive quiz question
     global quiz_question
     quiz_question = update.message.text # update the message
     
@@ -119,7 +127,7 @@ async def quiz_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     return QUIZ_ANSWERS # receive quiz answers data
 
 
-async def quiz_answers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # receive quiz answers
+async def quiz_answers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # receive quiz answers
     global quiz_answers
     quiz_answers = update.message.text
     
@@ -141,7 +149,7 @@ async def quiz_answers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     return CORRECT_ANSWER # receive correct quiz answer data
 
 
-async def correct_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: # receive correct quiz answer
+async def correct_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # receive correct quiz answer
     correct_answer = update.message.text # update message
 
     global answer_dict
@@ -326,11 +334,8 @@ def main():
     dispatcher.add_handler(MessageHandler(filters.POLL, receive_poll))
     dispatcher.add_handler(PollAnswerHandler(receive_poll_answer))
     dispatcher.add_handler(PollHandler(receive_quiz_answer))
-    #dispatcher.run_polling()
+    dispatcher.run_polling()
 
 
 if __name__ == '__main__':
     main()
-
-#TODO test all the functions and add the quiz function. Also, ensure that you consider adding the inline functions, as well as perhaps
-#TODO potentially random quiz/poll generation functions, and commands/help functions.

@@ -3,7 +3,7 @@ from telegram.ext import CommandHandler, ContextTypes, CallbackQueryHandler, Inl
 
 from uuid import uuid4
 
-from __init__ import dispatcher
+from src import dispatcher
 
 _MODULE_ = "Dice"
 _HELP_ = """
@@ -151,6 +151,7 @@ def main() -> None:
     dispatcher.add_handler(CallbackQueryHandler(roll_dice))
     dispatcher.add_handler(CommandHandler("dice_values", dice_values))
     dispatcher.add_handler(InlineQueryHandler(inline_queries_handler))
+    dispatcher.run_polling()
 
 
 if __name__ == '__main__':
