@@ -59,7 +59,6 @@ async def receive_location_parameter(update: Update, context: ContextTypes.DEFAU
             location_arguments[index] = item.lower()
 
         location += location_arguments[index]         
-    print(location)
     
     # store location in user data dict
     context.user_data["location"] = location
@@ -85,28 +84,17 @@ async def retrieve_city_registries(update: Update, context: ContextTypes.DEFAULT
         return   
     
     # initialise pyowm manager
+    global owm_manager, OWM
     owm_manager = manager.OWM_API_Manager(api_key)
-    owm_manager = owm_manager.initialise_manager()
+    OWM = owm_manager.initialise_manager()
 
-    registry_manager = manager.RegistryManager(owm_manager, location)
+    # initialise registry manager
+    global registry_manager
+    registry_manager = manager.RegistryManager(OWM, location)
     
     # retrieve and store the city registries
     city_registries = registry_manager.get_city_ids()
     context.chat_data[location] = city_registries
-
-    '''
-    owm = pyowm.OWM(api_key) # owm manager is used because it provides more results in city registry than using geocoder directly from owm api
-    # obtain ids
-    reg = owm.city_id_registry()
-    print("location: ", location)    
-
-    # store city registries
-    city_registries = reg.ids_for(location, matching='exact') # will exact match
-    context.chat_data[location] = city_registries
-
-    #print(city_registries)
-    print("list: ", city_registries)
-    '''
     # parse the city registry information together and store in payload or present to end-user
     await parse_city_registry_information(update, context)
     
@@ -128,11 +116,11 @@ async def parse_city_registry_information(update: Update, context: ContextTypes.
         return
     
     """if the location only exists in one place then the location"""
-    if is_one_city_registry(city_registries): # check to see how many returned results are provided.
+    if registry_manager.is_one_location_result(city_registries): # check to see how many returned results are provided.
         city_id = city_registries[0][0]
         name = city_registries[0][1]
         country = city_registries[0][2]   
-        if check_if_state_available(city_registries, 0): 
+        if registry_manager.is_state_available(city_registries, 0): 
             state = city_registries[0][3] 
         else:
             state = ''
@@ -165,7 +153,7 @@ async def parse_city_registry_information(update: Update, context: ContextTypes.
             name = city_registries[i][1]
             country = city_registries[i][2]
 
-            if check_if_state_available(city_registries, i): 
+            if registry_manager.is_state_available(city_registries, i): 
                 state = city_registries[i][3] 
             else:
                 state = ''
@@ -312,18 +300,20 @@ async def receive_current_forecast_data(update: Update, context: ContextTypes.DE
     name = location_dict['name']
     country, state = location_dict['country'], location_dict['state']
     lat, lon = location_dict['lat'], location_dict['lon']
+    weather_manager = manager.WeatherManager(lat, lon)
     
-    response = requests.get(f'https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&appid={OWM_API_TOKEN}')
+    #response = requests.get(f'https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&appid={OWM_API_TOKEN}')
+    response = weather_manager.request_weather()
 
     try:
-        if successfully_retrieved_page(response): # valid response
+        if response is not None: # valid response
             # parse the json data
             forecast_json_data = json.loads(response.text)
-            #print(forecast_json_data)
+            print(forecast_json_data)
             main_data = forecast_json_data["main"]
-            description = forecast_json_data["weather"][0]["description"]
+            description = forecast_json_data["weather"][0]["description"] 
+            description += f" {weather_manager.return_description_emoji(description)}"
             wind_data = forecast_json_data["wind"]
-
             temp, temp_min, temp_max = main_data["temp"], main_data["temp_min"], main_data["temp_max"]
             humidity, windspeed = main_data["humidity"], wind_data["speed"]
 
@@ -340,7 +330,7 @@ async def receive_current_forecast_data(update: Update, context: ContextTypes.DE
                     "windspeed": windspeed
                 }
             }
-
+            print("Payload: ", payload)
             context.user_data.update(payload)
         else:
             await update.message.reply_text(
@@ -428,22 +418,18 @@ async def receive_daily_forecast_data(update: Update, context: ContextTypes.DEFA
         )
 
     # retrieve the location information
-    name = location_information['name']
-    country, state = location_information['country'], location_information['state']
-    lat, lon = location_information['lat'], location_information['lon']
+    location_info = registry_manager.get_location_information(location_information)
+    name, country, state, lat, lon = location_info[0], location_info[1], location_info[2], location_info[3], location_info[4]
     
     if command == "/dayForecast":
         cnt = 8 * duration
     elif command == "/hourForecast":
         cnt = duration
-
-    print(cnt)
-
-    response = requests.get(f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&units=metric&cnt={cnt}&appid={OWM_API_TOKEN}")
+    url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&units=metric&cnt={cnt}&appid={OWM_API_TOKEN}"
+    response = owm_manager.request_api(url)
     
     try:
-        if successfully_retrieved_page(response):
-            #print(response.text)
+        if response is not None:
             # parse the json data
             forecast_json_data = json.loads(response.text)
             forecast_list = forecast_json_data["list"]
@@ -607,30 +593,6 @@ async def retrieve_geocodes(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     city_registries = reg.ids_for(location_name, matching='exact') # will exact check
 
     print(city_registries)
-
-
-def is_one_city_registry(registry):
-    """return true if there is only one available city register"""
-    if len(registry) == 1:
-        return True
-    
-    return False
-
-
-def check_if_state_available(data, iteration):
-    """return true if the value for the state is not -> None"""
-    if data[iteration][3] != None:
-        return True
-    
-    return False
-
-
-# Currently doesn't work
-def successfully_retrieved_page(response) -> None:
-    if response.status_code == 200:
-        return True
-    
-    return False
 
 
 async def cancel_weather(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
