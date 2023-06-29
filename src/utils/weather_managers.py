@@ -4,7 +4,7 @@ import json
 import pyowm
 from typing import Tuple, Optional
 
-from src import LOGGER
+from src import LOGGER, OWM_API_TOKEN
 
 
 class OWM_API_Manager:
@@ -12,7 +12,6 @@ class OWM_API_Manager:
         self.api_key = api_key
         self.base_url = "http://api.openweathermap.org/data/2.5/"
         self.units = "metric" # allow the user to change this in settings later on
-
 
     def initialise_manager(self) -> str:
         # initialise the manager with the api key 
@@ -34,12 +33,13 @@ class OWM_API_Manager:
             LOGGER.error("The request was unsuccessful. Status code: " + str(response.status_code))
             return None
         
-        return response.text
+        return response
 
 # child classes
 
 class LocationManager(OWM_API_Manager):
     def __init__(self, location, city_name, country_code, state_code) -> None:
+        OWM_API_Manager.__init__(self, OWM_API_TOKEN)
         self.location = location
         self.geocode_url = "http://api.openweathermap.org/geo/1.0/direct?"
         self.forecast_query_string = "forecast?"
@@ -98,6 +98,7 @@ class LocationManager(OWM_API_Manager):
 
 class WeatherManager(OWM_API_Manager):
     def __init__(self, lat, lon) -> None:
+        OWM_API_Manager.__init__(self, OWM_API_TOKEN)
         self.weather_query_string = "weather?"
         self.lat = lat 
         self.lon = lon
@@ -114,7 +115,7 @@ class WeatherManager(OWM_API_Manager):
         }
 
 
-    def request_weather(self, city_name) -> str:
+    def request_weather(self) -> str:
         """
         Requests the weather data from the OpenWeatherMap API.
 
@@ -123,16 +124,12 @@ class WeatherManager(OWM_API_Manager):
         """
 
         complete_url = f"{self.base_url}{self.weather_query_string}lat={self.lat}&lon={self.lon}&appid={self.api_key}&units={self.units}"
+        print("COMPLETE URL: " + complete_url)
 
         # check to see whether the request was successful
-
         weather_data = self.request_api(complete_url) # request the API -> method from parent class
 
-        if weather_data is None:
-            return weather_data
-        
-        return json.loads(weather_data)
-        
+        return weather_data
     
     def return_description_emoji(self, description) -> str:
         # returns the emoji corresponding to the description
@@ -140,7 +137,7 @@ class WeatherManager(OWM_API_Manager):
             if key == description:
                 return value
             
-        return None
+        return ""
 
 
 class RegistryManager(OWM_API_Manager):
@@ -149,6 +146,7 @@ class RegistryManager(OWM_API_Manager):
     """
 
     def __init__(self, owm, location_name) -> None:
+        OWM_API_Manager.__init__(self, OWM_API_TOKEN)
         self.owm = owm
         self.location_name = location_name
 
@@ -160,10 +158,10 @@ class RegistryManager(OWM_API_Manager):
         return registry.ids_for(self.location_name, matching='exact') # exact match for now
 
 
-    def get_location_information(self, location_dict) -> Tuple[str, str, Optional[str]]:
+    def get_location_information(self, location_dict) -> Tuple[str, str, Optional[str], str, str]:
         # returns the location information from the dictionary
 
-        return location_dict['name'], location_dict['country'], location_dict['state']
+        return location_dict['name'], location_dict['country'], location_dict['state'], location_dict['lat'], location_dict['lon']
     
 
     def is_one_location_result(self, registry) -> bool:
@@ -175,7 +173,7 @@ class RegistryManager(OWM_API_Manager):
         return False
     
 
-    def is_state_available(registry, iteration) -> bool:
+    def is_state_available(self, registry, iteration) -> bool:
         # Returns true if the placeholder for the state index is not referenced as 'None'
         
         if registry[iteration][3] != None:
