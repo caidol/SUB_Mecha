@@ -1,7 +1,10 @@
-from src import dispatcher
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, constants, InlineQueryResultArticle, InputTextMessageContent
-from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes, CallbackContext
+import logging # as a test
 
+from src import dispatcher, LOGGER
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, constants
+from telegram.ext import CommandHandler, CallbackQueryHandler, CallbackContext
+
+LOGGER.info("Dice Module: Started initialisation")
 _MODULE_ = "Dice"
 _HELP_ = """
 /dice_help - Receive more information about the dice.
@@ -44,14 +47,20 @@ KEYBOARD = [
 
 async def help(update: Update, context: None) -> None:
     message_id = update.effective_message.id
-    await update.message.reply_text(reply_to_message_id=message_id, text=HELP_TEXT)
-
+    try:
+        await update.message.reply_text(reply_to_message_id=message_id, text=HELP_TEXT)
+        LOGGER.info("Dice Module: Successfully sent dice help information.")
+    except:
+        LOGGER.error("Dice Module: Unable to send dice help information.")
 
 async def choose_dice_option(update: Update, context: None) -> None:
     reply_markup = InlineKeyboardMarkup(KEYBOARD)
-
-    await update.message.reply_text("Please choose:", reply_markup=reply_markup)
-
+    
+    try:
+        await update.message.reply_text("Please choose:", reply_markup=reply_markup)
+        LOGGER.info("Dice Module: Successfully sent inline keyboard for dice option.")
+    except:
+        LOGGER.error("Dice Module: Inline keyboard for dice option sent unsuccessfully.")
 
 async def roll_dice(update: Update, context: CallbackContext) -> None:
     chat_id = update.effective_chat.id
@@ -59,18 +68,28 @@ async def roll_dice(update: Update, context: CallbackContext) -> None:
     await query.answer()
 
     if query.data == "":
+        LOGGER.info("Dice Module: Callback query for rolling dice was awaited and returned a null value.")
         return
 
     for key, emoji in DICE_OPTIONS.items():
         if query.data == key:
-            await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
+            try:
+                await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
+                LOGGER.info("Dice Module: send_dice() bot method was successfully called.")
+            except:
+                LOGGER.error("Dice Module: send_dice() bot method was unsuccessfully called.")
 
 def main() -> None:
+    LOGGER.info("Dice Module: Adding context handlers")
     dispatcher.add_handler(CommandHandler("dice_help", help))
     dispatcher.add_handler(CommandHandler("dice", choose_dice_option))
     dispatcher.add_handler(CallbackQueryHandler(roll_dice))
-    #dispatcher.run_polling()
+    dispatcher.run_polling()
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+        LOGGER.info("Dice Module: Initialisation has finished successfully.")
+    except:
+        LOGGER.error("Dice Module: Unsuccessfull initialisation.")

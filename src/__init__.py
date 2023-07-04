@@ -1,20 +1,31 @@
 import yaml
-import os
 import sys 
 import logging 
 import time
+import os
+import re
 from telegram.ext import Application 
 
 # retrieve program path
-PROGRAM_PATH = os.path.abspath('__init__.py').strip('/src/__init__.py')
+PROGRAM_PATH = re.match(r"(.*)\/src", os.getcwd())
+if PROGRAM_PATH is None:
+    PROGRAM_PATH = os.getcwd()
+else:
+    PROGRAM_PATH = PROGRAM_PATH.group(1) # Regex pattern ensures that the path is only up to the src folder no matter the location
+
+PROGRAM_PATH = f"{PROGRAM_PATH}/"
 print("program path: ", PROGRAM_PATH)
 
 # Enable logging
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="(LOGGER) %(asctime)s [%(levelname)s] -> %(message)s", level=logging.INFO, datefmt="%I:%M:%S %p",
 )
+# set higher logging level for httpx to avoid all GET and POST requests being logged
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 LOGGER = logging.getLogger(__name__)
+LOGGER.info("test")
+
 CONFIG_FILENAME = "config"
 
 # Check python version
@@ -107,4 +118,5 @@ print(BOT_TOKEN)
 print(OWNER_ID)
 print(OWNER_USERNAME)
 print(HEROKU_URL)
+print(dispatcher)
 '''
