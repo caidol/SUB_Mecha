@@ -74,6 +74,7 @@ if ENV:
         BOT_USERNAME = ENV['BOT_USERNAME']['value']
         HEROKU_URL = ENV['HEROKU_URL']['value']
         OWM_API_TOKEN = ENV['OWM_API_TOKEN']['value']
+        DATABASE_URL = ENV['DATABASE_URL']['value']
     except ValueError:
         for item in ENV:
             if ENV[item]['value'] == "" and ENV[item]['required'] == True:

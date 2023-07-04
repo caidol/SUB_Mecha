@@ -43,4 +43,9 @@ env:
     description: "The Open Weather Map API token in order to access weather data."
     value: "94bcb94a4dc94f8116c87a8d4d105dc7"
     required: true
+
+  DATABASE_URL:
+    description: "The database URL for the sqllite3 database."
+    value: "sqlite:///database.db" # keep it temporary for now
+    required: true
 ...
