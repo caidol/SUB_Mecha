@@ -1,3 +1,4 @@
+import re
 from src import dispatcher, LOGGER
 
 from telegram import ( # telegram module imports
@@ -29,6 +30,7 @@ _HELP = """
 /cancelPoll - Cancel the poll creation
 """
 
+LOGGER.info("Polls Module: Started initialisation.")
 
 TOTAL_VOTER_COUNT = 3 # must be left a constant
 answer_dict = {}
@@ -38,24 +40,17 @@ QUIZ_QUESTION, QUIZ_ANSWERS, CORRECT_ANSWER = range(3) # for quiz creation
 
 
 async def configure_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # start poll config
-    if str(update.effective_chat.id)[0] == '-': # check if chat is a group
-        await update.message.reply_text(
-            # force user to run the command in a PM
-            """
-            Please run the command again in a private chat
-            
-            https://t.me/sub_mecha_bot/
-            """
-        )
-        await cancel_operation() # cancel the operation
-    else:
+    try:
         # ask for question
         await context.bot.send_message(
             chat_id=update.effective_user.id,
             text="Please enter the question for your poll:",
         )
-
-        return POLL_QUESTION # receive poll question data
+        LOGGER.info("Polls Module: Question input message has been sent to chat.")
+    except:
+        LOGGER.info("Polls Module: Question input message was unable to be sent to chat.")
+    
+    return POLL_QUESTION # receive poll question data
 
 
 async def poll_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # receive poll question
@@ -65,12 +60,16 @@ async def poll_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     # store question as key
     context.user_data[poll_question] = None # store question as key in user data
     #poll_dict[poll_question] = None
-    print("Poll question is: ", poll_question)
+    LOGGER.info("Polls Module: Poll question is -> ", poll_question)
     
-    await context.bot.send_message(
-        chat_id=update.effective_user.id,
-        text="Please enter your responses separated by commas AND A WHITESPACE: ",
-    )
+    try:
+        await context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text="Please enter your responses separated by commas AND A WHITESPACE: ",
+        )
+        LOGGER.info("Polls Module: Response input message has been sent to chat.")
+    except:
+        LOGGER.info("Polls Module: Response input message was unable to be sent to chat.")
 
     return POLL_ANSWERS # receive poll answer data
 
@@ -81,16 +80,21 @@ async def poll_answers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
     # store responses as values
     context.user_data[poll_question] = poll_answers # store poll answer in user data with corresponding poll question key
-    
+    LOGGER.info("Polls Module: Poll answers are -> ", poll_answers)
+
     # TRY FIX THIS: splits the data only by a comma and whitespace, but should allow to do just comma
     for i in context.user_data.keys(): 
         if i == poll_question:
-            context.user_data[poll_question] = poll_answers.split(', ')
+            context.user_data[poll_question] = poll_answers.split(re.compile('[, ]||[,]')) # TODO test this
     
-    await context.bot.send_message(
-        chat_id=update.effective_user.id,
-        text="Thanks for configuring your poll! Now run the /poll command anywhere you wish to send it."
-    )
+    try:
+        await context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text="Thanks for configuring your poll! Now run the /poll command anywhere you wish to send it."
+        )
+        LOGGER.info("Polls Module: Completion message has been sent to chat.")
+    except:
+        LOGGER.info("Polls Module: Completion message was unable to be sent to chat.")
 
     return ConversationHandler.END # return the end of the conversation
 
