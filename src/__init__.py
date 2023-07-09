@@ -20,11 +20,8 @@ print("program path: ", PROGRAM_PATH)
 logging.basicConfig(
     format="(LOGGER) %(asctime)s [%(levelname)s] -> %(message)s", level=logging.INFO, datefmt="%I:%M:%S %p",
 )
-# set higher logging level for httpx to avoid all GET and POST requests being logged
-logging.getLogger("httpx").setLevel(logging.WARNING)
 
 LOGGER = logging.getLogger(__name__)
-LOGGER.info("test")
 
 CONFIG_FILENAME = "config"
 
@@ -71,6 +68,7 @@ data = read_yaml_data(CONFIG_FILENAME)
 # Below we define our constants that can be imported throughout the engine.
 
 PROGRAM_NAME = data['name']
+BOT_USERNAME = data['username']
 DESCRIPTION = data['description']
 LOGO = data['logo'] # must get a logo as there's currently no default logo
 REPOSITORY = data['repository']

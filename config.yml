@@ -2,6 +2,7 @@
 # Below is the configuration information required for the application
 
 name: "SUB_Mecha"
+username: "sub_mecha_bot"
 description: "A Telegram Utility and Group Management Bot which will provide a range of useful features to users."
 logo: ""
 keywords:
