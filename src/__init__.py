@@ -1,20 +1,28 @@
 import yaml
-import os
 import sys 
 import logging 
 import time
+import os
+import re
 from telegram.ext import Application 
 
 # retrieve program path
-PROGRAM_PATH = os.path.abspath('__init__.py').strip('/src/__init__.py')
+PROGRAM_PATH = re.match(r"(.*)\/src", os.getcwd())
+if PROGRAM_PATH is None:
+    PROGRAM_PATH = os.getcwd()
+else:
+    PROGRAM_PATH = PROGRAM_PATH.group(1) # Regex pattern ensures that the path is only up to the src folder no matter the location
+
+PROGRAM_PATH = f"{PROGRAM_PATH}/"
 print("program path: ", PROGRAM_PATH)
 
 # Enable logging
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="(LOGGER) %(asctime)s [%(levelname)s] -> %(message)s", level=logging.INFO, datefmt="%I:%M:%S %p",
 )
 
 LOGGER = logging.getLogger(__name__)
+
 CONFIG_FILENAME = "config"
 
 # Check python version
@@ -60,6 +68,7 @@ data = read_yaml_data(CONFIG_FILENAME)
 # Below we define our constants that can be imported throughout the engine.
 
 PROGRAM_NAME = data['name']
+BOT_USERNAME = data['username']
 DESCRIPTION = data['description']
 LOGO = data['logo'] # must get a logo as there's currently no default logo
 REPOSITORY = data['repository']
@@ -74,6 +83,7 @@ if ENV:
         BOT_USERNAME = ENV['BOT_USERNAME']['value']
         HEROKU_URL = ENV['HEROKU_URL']['value']
         OWM_API_TOKEN = ENV['OWM_API_TOKEN']['value']
+        DATABASE_URL = ENV['DATABASE_URL']['value']
     except ValueError:
         for item in ENV:
             if ENV[item]['value'] == "" and ENV[item]['required'] == True:
@@ -106,4 +116,5 @@ print(BOT_TOKEN)
 print(OWNER_ID)
 print(OWNER_USERNAME)
 print(HEROKU_URL)
+print(dispatcher)
 '''
