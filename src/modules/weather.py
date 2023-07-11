@@ -57,7 +57,6 @@ async def receive_location_parameter(update: Update, context: ContextTypes.DEFAU
     location_arguments = list(location_arguments) # to make it mutable
 
     for index, item in enumerate(location_arguments):
-        #print(index, item)
         if (index == 0) or (location_arguments[index-1] == ' '):
             location_arguments[index] = item.upper()
         else:
@@ -185,7 +184,6 @@ async def parse_city_registry_information(update: Update, context: ContextTypes.
 
             all_city_registries.append([current_id, name, country, state, lat, lon]) # append location information
 
-        #print("All city registries: ", all_city_registries)
         bot_message = ""
         bot_message += "It appears that there's more than one location with this name."
         bot_message += "\nPlease select one of the options below\n\n"
@@ -479,7 +477,6 @@ async def receive_daily_forecast_data(update: Update, context: ContextTypes.DEFA
             forecast_json_data = json.loads(response.text)
             forecast_list = forecast_json_data["list"]
             forecast_payload = {}
-            #print(int(cnt/duration))
 
             if command == "/dayForecast":
                 condition = int(cnt/8)
@@ -487,18 +484,12 @@ async def receive_daily_forecast_data(update: Update, context: ContextTypes.DEFA
                 condition = int(cnt)
 
             for index in range(condition):
-                #print("index: ", (8 * index))
-
                 if command == "/dayForecast":
                     dt_text = forecast_list[(8*index)]["dt_txt"].split(' ')[0]
-                    print(dt_text)
-
                     number_of_hourly_periods = 8 * index
                     hour_period_condition = (8 * (index + 1))
                 elif command == "/hourForecast":
                     dt_text = f"{forecast_list[(index)]['dt_txt'].split(' ')[0]} {forecast_list[(index)]['dt_txt'].split(' ')[1]}"
-                    print(dt_text)
-
                     number_of_hourly_periods = index
                     hour_period_condition = cnt
 
