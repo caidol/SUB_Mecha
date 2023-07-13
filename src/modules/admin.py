@@ -8,8 +8,10 @@ from telegram.error import RetryAfter, BadRequest
 from telegram.ext import CommandHandler, MessageHandler, ContextTypes, filters, CallbackContext
 
 from src import LOGGER, dispatcher
-from src.core.decorators.chat import can_promote
+from src.core.decorators.chat import can_promote, bot_is_admin
 from src.utils.extraction import extract_user_and_reason, extract_user_only
+
+from src.core.sql.users_sql import get_name_by_userid 
 
 __MODULE__ = "Admin"
 __HELP__ = """
@@ -38,22 +40,19 @@ __HELP__ = """
 /invite - Send an invite link
 """
 
-# NOTE - The group management commands (e.g admin) should only be worked on after a database has been implemented.
-
+@bot_is_admin
 @can_promote
 async def demote(update: Update, context: CallbackContext) -> None:
+    BOT_ID = context.bot.id
     message = update.effective_message
     previous_message = message.reply_to_message
-    message.reply_text("Test")
-    user_id = await extract_user_only(message)
-    print("USER ID: ", user_id)
+    user_id, reason = await extract_user_and_reason(update, message)
 
     if not user_id:
         return await message.reply_text("I can't find that user")
-    '''
     if user_id == BOT_ID: # need to set the bot id
-        return await update.message.reply_text("I can't demote myself")
-    '''
+        return await update.message.reply_text("I can't demote myself") # TODO ensure that the bot information is stored in the database
+
     try:
         await message.chat.promote_member(
             user_id=user_id,
@@ -74,9 +73,19 @@ async def demote(update: Update, context: CallbackContext) -> None:
                 - Someone else has revoked or set my admin permissions.
             """
         )
+        return
 
-    username = previous_message.from_user.name
-    reply_message = f"<b>{username} has been demoted.</b>"
+    if message.reply_to_message:
+        username = previous_message.from_user.name
+    else:
+        username = get_name_by_userid(user_id)
+        username = f"@{username[0].username}" # select the username column of the first selected item
+
+    if reason is None:
+        reply_message = f"<b>{username} has been demoted.</b>"
+    else:
+        reply_message = f"<b>{username} has been demoted.\n\nReason: {reason}</b>"
+    
     await update.message.reply_text(
         text=reply_message,
         parse_mode=ParseMode.HTML,

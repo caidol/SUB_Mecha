@@ -24,6 +24,7 @@ from telegram.ext import ( # telegram.ext module imports
     filters
 )
 
+LOGGER.info("Polls: Started initialisation.")
 _MODULE_ = "Poll/Quiz"
 _HELP = """
 /preview - Create a preview for a poll to be displayed
@@ -402,7 +403,7 @@ def main():
     dispatcher.add_handler(MessageHandler(filters.POLL, receive_poll))
     dispatcher.add_handler(PollAnswerHandler(receive_poll_answer))
     dispatcher.add_handler(PollHandler(receive_quiz_answer))
-    dispatcher.run_polling()
+    #dispatcher.run_polling()
 
 if __name__ == '__main__':
     main()

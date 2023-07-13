@@ -19,11 +19,12 @@ __HELP__= """
 
 def get_user_id(username, chat_id):
     LOGGER.info("Users: Retrieving the user id given username.")
-    if len(username) <= 5:
-        return None
-    
+
     if username.startswith("@"):
         username = username[1:]
+    
+    if len(username) <= 5:
+        return None
 
     LOGGER.info("Users: Querying sql for userid given username")
     users = sql.get_userid_by_name(username)
@@ -127,6 +128,7 @@ async def log_user(update: Update, context: CallbackContext):
 
 if __name__ == '__main__':
     LOGGER.info("User: Creating and adding handlers.")
+    #sql.create_tables()
 
     USER_LOG_HANDLER = MessageHandler(filters.ALL & filters.CHAT, log_user)
     BROADCAST_HANDLER = CommandHandler(

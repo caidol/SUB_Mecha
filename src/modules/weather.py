@@ -16,6 +16,7 @@ from telegram.ext import (
     filters, 
 )
 
+LOGGER.info("Weather: Started initialisation.")
 _MODULE_ = "weather"
 _HELP_ = """
 /currentForecast - Get the current weather forecast for a location
@@ -676,7 +677,7 @@ def main():
     )
     dispatcher.add_handler(weather_forecast_handler)
     dispatcher.add_handler(CallbackQueryHandler(collect_callback_registry_data))
-    dispatcher.run_polling()     # leave as a comment for the actual program to run this in the main function
+    #dispatcher.run_polling()     # leave as a comment for the actual program to run this in the main function
 
 
 if __name__ == '__main__':

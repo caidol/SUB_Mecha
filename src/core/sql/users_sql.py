@@ -70,9 +70,10 @@ class ChatMembers(BASE):
             self.chat.chat_id,
         )
 
-Users.__table__.create(bind=ENGINE)
-Chats.__table__.create(bind=ENGINE)
-ChatMembers.__table__.create(bind=ENGINE)
+def create_tables():
+    Users.__table__.create(bind=ENGINE)
+    Chats.__table__.create(bind=ENGINE)
+    ChatMembers.__table__.create(bind=ENGINE)
 
 # These functions below require a re-entry lock (RLock) because they are directly editing
 # information in the database tables
@@ -92,7 +93,6 @@ def update_user(user_id, username, chat_id=None, chat_name=None):
             SESSION.add(user)
             SESSION.flush()
         else:
-            user.user_id = user_id
             user.username = username
         
         if not chat_id or not chat_name:
@@ -122,20 +122,13 @@ def update_user(user_id, username, chat_id=None, chat_name=None):
 # These functions below do not require a re-entry insertion lock because they are only querying
 # specific tables for information
 
-def get_chatid_by_username(username):
-    try:
-        return (
-            SESSION.query(ChatMembers).get(ChatMembers.chat.chat_id)
-            .filter(ChatMembers.user.username == username)
-            .first()
-        )     
-    finally:
-        SESSION.close()
-
-
 def get_name_by_userid(user_id):
     try:
-        return SESSION.query(Users).get(Users.user_id == int(user_id)).first()
+        return (
+            SESSION.query(Users)
+            .filter(Users.user_id == int(user_id))
+            .all()
+        )
     finally:
         SESSION.close()
 
@@ -144,6 +137,7 @@ def get_userid_by_name(username):
         return (
             SESSION.query(Users)
             .filter(func.lower(Users.username) == username.lower())
+            .all()
         )
     finally:
         SESSION.close()
