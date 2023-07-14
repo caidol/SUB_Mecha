@@ -45,18 +45,37 @@ def bot_is_admin(func):
     return is_admin
 
 
-def user_admin_check(chat: Chat, user_id: int, member: ChatMember) -> bool:
-    if chat.type == "private":
+async def user_admin_check(chat: Chat, user_id: int, member: ChatMember = None) -> bool:
+    chat_member_count = await chat.get_member_count()
+    chat_admins = await chat.get_administrators()
+
+    all_admins = True if len(chat_admins) == chat_member_count else False
+
+    if chat.type == "private" or all_admins:
         return True
     
-    #if not member:
+    if not member:
+        member = await chat.get_member(user_id)
     else:
-        return member.status in ("administrator", "creator")
+        #return await member.status in ("administrator", "creator")
+        return uasdjasd
 
 def user_is_admin(func):
     @wraps(func)
-    def is_admin(update: Update, context: CallbackContext, *args, **kwargs):
-        pass
+    async def is_admin(update: Update, context: CallbackContext, *args, **kwargs):
+        chat = update.effective_chat
+        user = update.effective_user
+
+        if user and user_admin_check(chat, user.id):
+            return await func(update, context, *args, **kwargs)
+        elif not user:
+            pass
+        else:
+            await update.effective_message.reply_text(
+                "Who dareth summonth thy commands of admins without being an admin thyself!?"
+            )
+
+    return is_admin
 
 def can_promote(func):
     @wraps(func)
@@ -80,3 +99,55 @@ def can_promote(func):
             await update.effective_message.reply_text(cant_promote, parse_mode=ParseMode.HTML)
         
     return promote_rights
+
+def can_pin(func):
+    @wraps(func)
+    async def pin_rights(update: Update, context: CallbackContext, *args, **kwargs):
+        bot = context.bot
+        chat = update.effective_chat
+        message = update.effective_message
+        update_chat_title = chat.title
+        message_chat_title = message.chat.title
+
+        if update_chat_title == message_chat_title:
+            cant_pin = "I can't pin/unpin messages here!\nMake sure that I'm admin and have the correct privileges."
+        else:
+            cant_pin = f"I can't pin/unpin messages in <b>{update_chat_title}</b>!\nMake sure I'm admin and can pin/unpin messages there."
+
+        bot_member = await chat.get_member(bot.id)
+
+        if bot_member.can_pin_messages:
+            return await func(update, context, *args, **kwargs)
+        else:
+            await update.effective_message.reply_text(
+                cant_pin,
+                parse_mode=ParseMode.HTML,
+            )
+    
+    return pin_rights
+
+def can_invite(func):
+    @wraps(func)
+    async def invite_rights(update: Update, context: CallbackContext, *args, **kwargs):
+        bot = context.bot
+        chat = update.effective_chat
+        message = update.effective_message
+        update_chat_title = chat.title
+        message_chat_title = message.chat.title
+
+        if update_chat_title == message_chat_title:
+            cant_invite = "I can't send invite links here!\nMake sure I'm admin and have the correct privileges."
+        else:
+            cant_pin = f"I can't send invite links in <b>{update_chat_title}</b>!\nMake sure I'm admin and can pin/unpin messages there."
+
+        bot_member = await chat.get_member(bot.id)
+
+        if bot_member.can_invite_users:
+            return await func(update, context, *args, **kwargs)
+        else:
+            await update.effective_message.reply_text(
+                cant_pin,
+                parse_mode=ParseMode.HTML,
+            )
+    
+    return invite_rights
