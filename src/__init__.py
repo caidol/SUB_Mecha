@@ -72,6 +72,7 @@ BOT_USERNAME = data['username']
 DESCRIPTION = data['description']
 LOGO = data['logo'] # must get a logo as there's currently no default logo
 REPOSITORY = data['repository']
+DEV_ID = 5472502746 # this is my id
 
 ENV = data['env']
 

@@ -1,9 +1,9 @@
 from random import randint, choice
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from datetime import datetime, timedelta
 
 from src import dispatcher
-from telegram import Chat
-
+from telegram import Chat, Message
 
 def generate_captcha():
     # Generate a random letter per time
@@ -66,6 +66,28 @@ def generate_captcha():
     image.save(file, "jpeg")
     print(correct_answer)
     return [file, correct_answer]
+
+
+async def time_formatter(message: Message, time_value: str) -> datetime:
+    time_units = ["d", "h", "m"] # (d)ays | (h)ours | (m)inutes
+    check_unit = "".join(list(filter(time_value[-1].lower().endswith, time_units)))
+    current_time = datetime.now()
+
+    time_digit = time_value[:-1] # anything before the last digit
+    if not time_digit.isdigit():
+        return await message.reply_text("Unable to format time as the digit is not in the correct format.")
+    
+    if check_unit == time_units[0]: # "d"
+        time_end = current_time + timedelta(days=int(time_digit))
+    elif check_unit == time_units[1]: # "h"
+        time_end = current_time + timedelta(hours=int(time_digit))
+    elif check_unit == time_units[2]: # m
+        time_end = current_time + timedelta(minutes=int(time_digit)) 
+    else:
+        await message.reply_text(
+            "Incorrect time specified"
+        )
+    return time_end
 
 
 async def get_admin_permissions(chat_id: int, user_id: int) -> list:

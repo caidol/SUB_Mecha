@@ -138,7 +138,7 @@ def can_invite(func):
         if update_chat_title == message_chat_title:
             cant_invite = "I can't send invite links here!\nMake sure I'm admin and have the correct privileges."
         else:
-            cant_pin = f"I can't send invite links in <b>{update_chat_title}</b>!\nMake sure I'm admin and can pin/unpin messages there."
+            cant_invite = f"I can't send invite links in <b>{update_chat_title}</b>!\nMake sure I'm admin and can pin/unpin messages there."
 
         bot_member = await chat.get_member(bot.id)
 
@@ -146,8 +146,34 @@ def can_invite(func):
             return await func(update, context, *args, **kwargs)
         else:
             await update.effective_message.reply_text(
-                cant_pin,
+                cant_invite,
                 parse_mode=ParseMode.HTML,
             )
     
     return invite_rights
+
+def can_restrict_members(func):
+    @wraps(func)
+    async def restriction_rights(update: Update, context: CallbackContext, *args, **kwargs):
+        bot = context.bot
+        chat = update.effective_chat
+        message = update.effective_message
+        update_chat_title = chat.title
+        message_chat_title = message.chat.title
+
+        if update_chat_title == message_chat_title:
+            cant_restrict = "I can't restrict members here!\nMake sure I'm admin and have the correct privileges."
+        else:
+            cant_restrict = f"I can't restrict members in <b>{update_chat_title}</b>!\nMake sure I'm admin and can restrict members there."
+
+        bot_member = await chat.get_member(bot.id)
+
+        if bot_member.can_restrict_members:
+            return await func(update, context, *args, **kwargs)
+        else:
+            await update.effective_message.reply_text(
+                cant_restrict,
+                parse_mode=ParseMode.HTML,
+            )
+    
+    return restriction_rights
