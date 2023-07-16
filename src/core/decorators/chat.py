@@ -58,7 +58,7 @@ async def user_admin_check(chat: Chat, user_id: int, member: ChatMember = None) 
         member = await chat.get_member(user_id)
     else:
         #return await member.status in ("administrator", "creator")
-        return uasdjasd
+        return await member.status in ("administrator", "creator")
 
 def user_is_admin(func):
     @wraps(func)
@@ -177,3 +177,29 @@ def can_restrict_members(func):
             )
     
     return restriction_rights
+
+def can_delete_messages(func):
+    @wraps(func)
+    async def deletion_rights(update: Update, context: CallbackContext, *args, **kwargs):
+        bot = context.bot
+        chat = update.effective_chat
+        message = update.effective_message
+        update_chat_title = chat.title
+        message_chat_title = message.chat.title 
+
+        if update_chat_title == message_chat_title:
+            cant_delete = "I can't delete messages here!\nMake sure I'm admin and have the correct privileges."
+        else:
+            cant_delete = f"I can't delete messages in <b>{update_chat_title}</b>!\nMake sure I'm admin and can delete messages here."
+
+        bot_member = await chat.get_member(bot.id)
+
+        if bot_member.can_delete_messages:
+            return await func(update, context, *args, **kwargs)
+        else:
+            await update.effective_message.reply_text(
+                cant_delete,
+                parse_mode=ParseMode.HTML,
+            )
+    
+    return deletion_rights

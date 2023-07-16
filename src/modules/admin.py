@@ -3,14 +3,14 @@ import re
 import html
 from time import time
 
-from telegram import Update, ChatPermissions, Message, Chat
+from telegram import Update, ChatPermissions, Chat, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
-from telegram.error import RetryAfter, BadRequest
+from telegram.error import RetryAfter, BadRequest, Forbidden
 from telegram.helpers import mention_html
 from telegram.ext import CommandHandler, MessageHandler, ContextTypes, filters, CallbackContext
 
 from src import LOGGER, dispatcher, DEV_ID
-from src.core.decorators.chat import can_promote, bot_is_admin, user_is_admin, can_pin, can_invite, can_restrict_members
+from src.core.decorators.chat import can_promote, bot_is_admin, user_is_admin, can_pin, can_invite, can_restrict_members, can_delete_messages
 from src.utils.extraction import extract_user_and_reason, extract_user_only
 from src.utils.groups import time_formatter
 
@@ -22,10 +22,10 @@ __HELP__ = """
 /set_chat_photo - Set the profile picture of the group/channel
 /set_chat_description - Set the description of the group/channel
 /set_user_title - Change the administrator title of an admin
-/ban - Ban a user
-/dban - Delete the replied message and consequently ban the sender of that message
-/tban - Ban a user for a specific time
-/unban - Unban a user
+/ban - Ban a user (almost done)
+/dban - Delete the replied message and consequently ban the sender of that message (almost done)
+/tban - Ban a user for a specific time (almost done)
+/unban - Unban a user (almost done)
 /listban - Ban a user from groups listed in a message
 /listunban - Unban a user from groups listed in a message
 /ban_ghosts - Ban all the deleted accounts in a chat
@@ -33,11 +33,11 @@ __HELP__ = """
 /dwarn - Delete the replied message and consequently warn the sender of that message
 /rmwarns - Remove all warnings of a user
 /warns - Show warnings of a user
-/kick - Kick a user
-/dkick - Delete the replied message and consequently kick the sender of that message
-/purge - Purge messages
-/purgefrom - Purge messages starting from a specific user
-/purge [n] - Purge "n" number of messages from replied message
+/kick - Kick a user (almost done)
+/dkick - Delete the replied message and consequently kick the sender of that message (almost done)
+/purge - Purge messages (done)
+/purge [n] - Purge "n" number of messages from replied message (done)
+/del - Delete a replied message
 /promote - Promote a chat member (done)
 /fullpromote - Promote a member with all rights
 /demote - Demote a chat member (done)
@@ -113,7 +113,8 @@ async def demote(update: Update, context: CallbackContext) -> None:
     else:
         username = get_name_by_userid(user_id)
         username = f"@{username[0].username}" 
-# select the username column of the first selected item
+    
+    # select the username column of the first selected item
     if reason is None:
         reply_message = f"<b>{username} has been demoted.</b>"
     else:
@@ -132,6 +133,7 @@ async def promote(update: Update, context: CallbackContext) -> None: # This need
     message = update.effective_message
     chat = update.effective_chat
     previous_message = message.reply_to_message
+    args = (update.message.text).split()
     user_id, reason = await extract_user_and_reason(update, message)
 
     if not user_id:
@@ -143,29 +145,56 @@ async def promote(update: Update, context: CallbackContext) -> None: # This need
 
     bot_member = await chat.get_member(BOT_ID)
 
-    try:
-        await message.chat.promote_member(
-            user_id=user_id,
-            can_post_messages=bot_member.can_post_messages,
-            can_edit_messages=bot_member.can_edit_messages,
-            can_delete_messages=bot_member.can_delete_messages,
-            can_invite_users=bot_member.can_invite_users,
-            can_restrict_members=bot_member.can_restrict_members,
-            can_pin_messages=bot_member.can_pin_messages,
-            can_promote_members=bot_member.can_promote_members,
-            can_manage_chat=bot_member.can_manage_chat,
-            can_manage_video_chats=bot_member.can_manage_video_chats,
-            can_manage_topics=bot_member.can_manage_topics,
-        )
-    except BadRequest:
-        await message.reply_text(
-            """
-            Unable to promote. There are a few reasons why this could happen:\n
-                - I don't have admin permissions.
-                - Someone else has revoked or set my admin permissions.
-            """
-        )
-        return
+    if args[0] == "fullpromote":
+        try:
+            await message.chat.promote_member(
+                user_id=user_id,
+                can_change_info=bot_member.can_change_info,
+                can_post_messages=bot_member.can_post_messages,
+                can_edit_messages=bot_member.can_edit_messages,
+                can_delete_messages=bot_member.can_delete_messages,
+                can_invite_users=bot_member.can_invite_users,
+                can_restrict_members=bot_member.can_restrict_members,
+                can_pin_messages=bot_member.can_pin_messages,
+                can_promote_members=bot_member.can_promote_members,
+                can_manage_chat=bot_member.can_manage_chat,
+                can_manage_video_chats=bot_member.can_manage_video_chats,
+                can_manage_topics=bot_member.can_manage_topics,
+            )
+        except BadRequest:
+            await message.reply_text(
+                """
+                Unable to promote. There are a few reasons why this could happen:\n
+                    - I don't have admin permissions.
+                    - Someone else has revoked or set my admin permissions.
+                """
+            )
+            return
+    else:
+        try:
+            await message.chat.promote_member(
+                user_id=user_id,
+                can_change_info=False,
+                can_post_messages=bot_member.can_post_messages,
+                can_edit_messages=bot_member.can_edit_messages,
+                can_delete_messages=bot_member.can_delete_messages,
+                can_invite_users=bot_member.can_invite_users,
+                can_restrict_members=False,
+                can_pin_messages=False,
+                can_promote_members=False,
+                can_manage_chat=bot_member.can_manage_chat,
+                can_manage_video_chats=bot_member.can_manage_video_chats,
+                can_manage_topics=bot_member.can_manage_topics,
+            )
+        except BadRequest:
+            await message.reply_text(
+                """
+                Unable to promote. There are a few reasons why this could happen:\n
+                    - I don't have admin permissions.
+                    - Someone else has revoked or set my admin permissions.
+                """
+            )
+            return
 
     if message.reply_to_message:
         username = previous_message.from_user.name
@@ -183,13 +212,64 @@ async def promote(update: Update, context: CallbackContext) -> None: # This need
         parse_mode=ParseMode.HTML,
     )
 
+@bot_is_admin
+@user_is_admin
+@can_delete_messages
+async def purge(update: Update, context: CallbackContext) -> None:
+    bot = context.bot
+    message = update.effective_message
+    replied_message = message.reply_to_message
+
+    await message.delete()
+
+    if not replied_message:
+        return await update.message.reply_text("Reply to a message in order to purge from.")
+    
+    commands = (update.message.text).split(None, 1)
+
+    if len(commands) > 1 and commands[1].isdigit(): # ensure it's correct type for [n] messages
+        purge_to = replied_message.id + int(commands[1])
+        if purge_to > message.id: # below the sent message
+            purge_to = message.id
+    else:
+        purge_to = message.id 
+
+    chat_id = message.chat.id
+    purged_ids = []  
+
+    for message_id in range(replied_message.id, purge_to):
+        purged_ids.append(message_id)
+
+        # Delete messages whilst appending if reaches max Telegram limit of 100
+        if len(purged_ids) == 100:
+            for to_delete_id in purged_ids:
+                try:
+                    await bot.delete_message(
+                        chat_id=chat_id,
+                        message_id=int(to_delete_id),
+                    )
+                except BadRequest:
+                    pass
+
+            # Start again in order to delete more than 100 messages
+            purged_ids = []
+
+    # Delete any remaining messages
+    if len(purged_ids) > 0:
+        for to_delete_id in purged_ids:
+            try:
+                await bot.delete_message(
+                    chat_id=chat_id,
+                    message_id=int(to_delete_id),
+                )  
+            except BadRequest:
+                pass 
 
 @bot_is_admin
 @user_is_admin
 @can_pin
 async def pin(update: Update, context: CallbackContext) -> None:
     args = context.args 
-    user = update.effective_user
     chat = update.effective_chat
     message = update.effective_message
 
@@ -212,34 +292,6 @@ async def pin(update: Update, context: CallbackContext) -> None:
         except BadRequest as excp:
             LOGGER.error("Admin: A bad request occurred when trying to pin a replied message.")
             raise excp
-    # work on this later
-    '''
-    else:
-        # send message initially
-        pinned_message = ""
-        for index in args:
-            if args.index(index) == len(args):
-                pinned_message += index
-            else:
-                pinned_message += f"{index} "
-
-        reply_message = f"<b>{pinned_message}\n\nMentioned by {user.username}</b>"
-        await user.send_message(
-            text=reply_message,
-            parse_mode=ParseMode.HTML,
-        )
-
-        try:
-            await context.bot.pin_chat_message(
-                chat_id=update.effective_chat.id,
-                message_id=update.message.message_id, 
-                disable_notification=is_silent,
-            )
-            return
-        except BadRequest as excp:
-            LOGGER.error("Admin: A bad request occurred when trying to pin a new message.")
-            raise excp
-    '''
 
 @bot_is_admin
 @user_is_admin
@@ -258,6 +310,171 @@ async def unpin(update: Update, context: CallbackContext) -> None:
     except BadRequest as excp:
             LOGGER.error("Admin: A bad request occurred when trying to unpin a replied message.")
             raise excp
+
+@bot_is_admin
+@user_is_admin
+@can_delete_messages
+async def delete(update: Update, context: CallbackContext) -> None:
+    message = update.effective_message
+
+    if not message.reply_to_message:
+        await update.message.reply_text("Reply to a message to delete it.")
+    
+    await message.reply_to_message.delete()
+    await message.delete()
+
+@bot_is_admin
+@user_is_admin
+@can_restrict_members
+async def mute(update: Update, context: CallbackContext) -> None:
+    BOT_ID = context.bot.id
+    message = update.effective_message
+    chat = update.effective_chat
+    args = (update.message.text).split(None, 1)
+    user_id, reason = await extract_user_and_reason(update, message)
+
+    if not user_id:
+        return await update.message.reply_text(
+            "I can't find that user"
+        )
+    if user_id == BOT_ID:
+        return await update.message.reply_text(
+            "You're trying to make me mute myself? I see how it is :("
+        )
+    if user_id == DEV_ID:
+        return await update.message.reply_text(
+            "It looks like you were trying to mute the developer of me, sorry you can't do that."
+        )
+    if user_id in (await chat.get_administrators()):
+        return await update.message.reply_text(
+            "I'm unable to mute admins - I'm afraid it's just the rules."
+        )
+
+    chat_member = (await chat.get_member(user_id))
+
+    mute_message = (
+        f"<b>Muted User:</b> {chat_member.user.mention_html()}\n"
+        f"<b>Muted By:</b> {message.from_user.mention_html() if message.from_user else 'Anonymous'}\n"
+    )
+    if args[0] == "tmute":
+        split = reason.split(None, 1)
+        time_length = split[0]
+        time_mute_reason = split[1] if len(args) > 1 else ""
+        temp_mute = await time_formatter(message, time_length)
+
+        mute_message += f"<b>Banned For:</b> {time_length}\n"
+        if time_mute_reason:
+            mute_message += f"<b>Reason:</b> {time_mute_reason}"
+
+        try:
+            if len(time_length[:-1]) < 3:
+                await message.chat.restrict_member(
+                    user_id,
+                    permissions=ChatPermissions(),
+                    until_date=temp_mute
+                )
+                await update.message.reply_text(
+                    mute_message, 
+                    parse_mode=ParseMode.HTML,
+                )
+            else:
+                await update.message.reply_text("You cant use more than 99.")
+        except AttributeError:
+            pass
+        return
+
+    if reason:
+        mute_message += f"<b>Reason:</b> {reason}"
+    await message.chat.restrict_member(
+        user_id,
+        permissions=ChatPermissions(),
+    )
+    await message.reply_text(mute_message, parse_mode=ParseMode.HTML)
+
+@bot_is_admin
+@user_is_admin
+@can_restrict_members
+async def ban_deleted_accounts(update: Update, context: CallbackContext) -> None:
+    message = update.effective_message
+    chat = update.effective_chat
+    chat_id = message.chat.id
+    deleted_users = []
+    banned_users = 0
+
+    #TODO work on this later
+    #for index in chat.get_members
+
+@bot_is_admin
+@user_is_admin
+@can_restrict_members
+async def unmute(update: Update, context: CallbackContext) -> None:
+    message = update.effective_message
+    chat = update.effective_chat
+    user_id = await extract_user_only(update, message)
+    if not user_id:
+        return await update.message.reply_text("I can't find that user.")
+    
+    await message.chat.restrict_member(
+        user_id,
+        permissions= ChatPermissions(
+            can_send_messages=True,
+            can_send_media_messages=True,
+            can_send_polls=True,
+            can_send_other_messages=True,
+            can_add_web_page_previews=True,
+            can_change_info=True,
+            can_invite_users=True,
+            can_pin_messages=True,
+            can_manage_topics=True,
+            can_send_audios=True,
+            can_send_documents=True,
+            can_send_photos=True,
+            can_send_videos=True,
+            can_send_video_notes=True,
+            can_send_voice_notes=True,
+        )
+    )
+    chat_member = (await chat.get_member(user_id))
+    await message.reply_text(f"Unmuted {chat_member.user.mention_html()}!", parse_mode=ParseMode.HTML)
+
+async def unmute_callback(update: Update, context: CallbackContext) -> None:
+    message = update.effective_message
+    await message.reply_text("test")
+    chat = update.effective_chat
+    
+    callback_query = update.callback_query
+    await callback_query.answer()
+    
+    if callback_query.data:
+        args = (callback_query.data).split('_')
+        if args[0] == "unmute":
+            user_id = args[1]
+    
+    if not user_id:
+        return await update.message.reply_text("I can't find that user.")
+    
+    await message.chat.restrict_member(
+        user_id,
+        permissions= ChatPermissions(
+            can_send_messages=True,
+            can_send_media_messages=True,
+            can_send_polls=True,
+            can_send_other_messages=True,
+            can_add_web_page_previews=True,
+            can_change_info=True,
+            can_invite_users=True,
+            can_pin_messages=True,
+            can_manage_topics=True,
+            can_send_audios=True,
+            can_send_documents=True,
+            can_send_photos=True,
+            can_send_videos=True,
+            can_send_video_notes=True,
+            can_send_voice_notes=True,
+        )
+    )
+    chat_member = (await chat.get_member(user_id))
+    await message.reply_text(f"Unmuted {chat_member.user.mention_html()}!", parse_mode=ParseMode.HTML)
 
 @bot_is_admin
 @user_is_admin
@@ -346,7 +563,6 @@ async def ban(update: Update, context: CallbackContext) -> None:
         else:
             await update.message.reply_text("You cant use more than 99.")
         return
-    
     if reason:
         ban_message += f"</b>Reason:</b> {reason}"
 
@@ -370,10 +586,8 @@ async def unban(update: Update, context: CallbackContext) -> None:
     if len(args) == 2:
         user = args[0]
         user_id = await extract_user_only(user)
-        print(user_id)
     elif len(args) == 1 and reply:
         user_id = reply.from_user.id
-        print(user_id)
     else:
         await update.message.reply_text(
             "Please either provide a username or reply to a message in order to unban someone."
@@ -390,35 +604,127 @@ async def unban(update: Update, context: CallbackContext) -> None:
         link = (await bot.get_chat(chat.id)).invite_link
         if not link:
             link = await bot.export_chat_invite_link(chat.id)
-        text = f"You have been unbanned from {update.effective_chat.full_name}. Below is the invite link if you'd wish to rejoin:\n\n{link}"
+        text = f"You have been unbanned from {update.effective_chat.title}. Below is the invite link if you'd wish to rejoin:\n\n{link}"
 
-        if message.reply_to_message:
+        try:
             await context.bot.send_message(
                 chat_id=user_id,
                 text=text,
                 disable_web_page_preview=True, 
             )
-        else:
+        except Forbidden:
+            pass
+
+@bot_is_admin
+@user_is_admin
+@can_restrict_members
+async def kick(update: Update, context: CallbackContext) -> None:
+    BOT_ID = context.bot.id
+    message = update.effective_message
+    chat = update.effective_chat
+    user_id, reason = await extract_user_and_reason(update, message)
+    args = (update.message.text).split(None, 1)
+
+    if not user_id:
+        await update.message.reply_text("I can't find that user.")
+    if user_id == BOT_ID:
+        return await update.message.reply_text(
+            "You're trying to make me ban myself? I see how it is :("
+        )
+    if user_id == DEV_ID:
+        return await update.message.reply_text(
+            "It looks like you were trying to ban the developer of me, sorry you can't do that."
+        )
+    if user_id in (await list_admins(chat, chat.id)):
+        return await update.message.reply_text(
+            "I'm unable to ban admins - I'm afraid it's just the rules."
+        )
+    
+    mention = (await chat.get_member(user_id))
+    kick_message = f"""
+<b>Kicked User:</b> {mention.user.mention_html()}
+<b>Kicked By:</b> {message.from_user.mention_html() if message.from_user else 'Anonymous'}
+    """
+    if reason:
+        kick_message += f"\n<b>Reason:</b> {reason}"
+
+    if args[0] == "dkick":
+        await message.reply_to_message.delete()
+    await message.chat.ban_member(user_id)
+    await message.reply_text(kick_message, parse_mode=ParseMode.HTML)
+    await asyncio.sleep(1)
+    await message.chat.unban_member(user_id)
+
+    # send an invite to the user that has been unbanned
+    bot = context.bot
+
+    if chat.type in [chat.GROUP, chat.SUPERGROUP]:
+        link = (await bot.get_chat(chat.id)).invite_link
+        if not link:
+            link = await bot.export_chat_invite_link(chat.id)
+        text = f"You have been kicked from {update.effective_chat.title}. Below is the invite link if you'd wish to rejoin:\n\n{link}"
+        
+        try:
             await context.bot.send_message(
-                chat_id=user_id,
-                text=text, 
+                chat_id=user_id, 
+                text=text,
                 disable_web_page_preview=True, 
             )
+        except Forbidden:
+            pass
 
 if __name__ == '__main__':
-    BAN_HANDLER = CommandHandler(["ban", "dban", "tban"], ban)
-    UNBAN_HANDLER = CommandHandler("unban", unban)
-    PROMOTE_HANDLER = CommandHandler("promote", promote)
-    DEMOTE_HANDLER = CommandHandler("demote", demote)
-    PIN_HANDLER = CommandHandler("pin", pin)
-    UNPIN_HANDLER = CommandHandler("unpin", unpin)
-    INVITE_HANDLER = CommandHandler("invite", invite)
+    BAN_HANDLER = CommandHandler(
+        ["ban", "dban", "tban"], ban, filters=~filters.ChatType.PRIVATE,
+    )
+    UNBAN_HANDLER = CommandHandler(
+        "unban", unban, filters=~filters.ChatType.PRIVATE,
+    )
+    KICK_HANDLER = CommandHandler(
+        ["kick", "dkick"], kick, filters=~filters.ChatType.PRIVATE,
+    )
+    MUTE_HANDLER = CommandHandler(
+        ["mute", "tmute"], mute, filters=~filters.ChatType.PRIVATE,
+    )
+    UNMUTE_HANDLER = CommandHandler(
+        "unmute", unmute,
+    )
+    UNMUTE_CALLBACK_HANDLER = MessageHandler(
+        filters.TEXT & ~filters.COMMAND, unmute_callback
+    )
+    PURGE_HANDLER = CommandHandler(
+        "purge", purge, filters=~filters.ChatType.PRIVATE,
+        )
+    PROMOTE_HANDLER = CommandHandler(
+        ["promote", "fullpromote"], promote, filters=~filters.ChatType.PRIVATE,
+        )
+    DEMOTE_HANDLER = CommandHandler(
+        "demote", demote, filters=~filters.ChatType.PRIVATE,
+    )
+    PIN_HANDLER = CommandHandler(
+        "pin", pin, filters=~filters.ChatType.PRIVATE,
+    )
+    UNPIN_HANDLER = CommandHandler(
+        "unpin", unpin, filters=~filters.ChatType.PRIVATE,
+        )
+    DELETE_HANDLER = CommandHandler(
+        "del", delete, filters=~filters.ChatType.PRIVATE,
+    )
+    INVITE_HANDLER = CommandHandler(
+        "invite", invite, filters=~filters.ChatType.PRIVATE,
+        )
 
     dispatcher.add_handler(BAN_HANDLER)
     dispatcher.add_handler(UNBAN_HANDLER)
+    dispatcher.add_handler(KICK_HANDLER)
+    dispatcher.add_handler(MUTE_HANDLER)
+    dispatcher.add_handler(UNMUTE_HANDLER)
+    dispatcher.add_handler(UNMUTE_CALLBACK_HANDLER)
+    dispatcher.add_handler(PURGE_HANDLER)
     dispatcher.add_handler(PROMOTE_HANDLER)
     dispatcher.add_handler(DEMOTE_HANDLER)
     dispatcher.add_handler(PIN_HANDLER)
     dispatcher.add_handler(UNPIN_HANDLER)
+    dispatcher.add_handler(DELETE_HANDLER)
     dispatcher.add_handler(INVITE_HANDLER)
     dispatcher.run_polling()
