@@ -9,7 +9,6 @@ from src import (
     OWNER_USERNAME
 )
 
-
 def test_speedtest():
     try:
         speed = speedtest.Speedtest()

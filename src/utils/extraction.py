@@ -4,63 +4,57 @@ from telegram import Message, MessageEntity, Update
 from telegram.error import BadRequest
 
 from src import LOGGER, dispatcher
-from src.utils.misc import get_user_id
+from src.modules.users import get_user_id
 
 
-async def extract_user_id(message, text: str) -> int:
+async def extract_user_id(update: Update, message, text: str) -> int:
     # check if the text is an integer
-    print("DEBUGGING MESSAGES FOR ID EXTRACTION")
+    LOGGER.info("DEBUGGING MESSAGES FOR ID EXTRACTION")
     def is_integer(text: str) -> bool:
         try:
             int(text)
         except ValueError:
-            print("TEXT IS NOT AN INTEGER")
+            LOGGER.info("TEXT IS NOT AN INTEGER")
             return False
-        print("TEXT IS AN INTEGER")
+        LOGGER.info("TEXT IS AN INTEGER")
         return True
     
-    print("TEXT BEFORE STRIP: ", text)
     text = text.strip()
-    print("TEXT AFTER STRIP: ", text)
-
     # return under the assumption that the user_id was 
-    # directly typed instead of a mention of their name
+    # directly typed instead of a mention of their username
     if is_integer(text): 
         return int(text)
     
     # Otherwise retrieve the message entities and check for any mentions made of that user
+    print("Message: ", message)
     entities = list(message.parse_entities([MessageEntity.TEXT_MENTION, MessageEntity.MENTION]))
-    print("MESSAGE ENTITIES: ", entities)
     entity = (entities[0] if entities else None)
-    print("MESSAGE ENTITY: ", entity)
     
-    # may need to implement a database to store the user_id and username
-    ''' 
-    if entity.type == MessageEntity.MENTION: 
-        return get_user_id(entity)
-    '''
-    if entity.type == MessageEntity.TEXT_MENTION:
+     
+    if entity == None:
+        return get_user_id(text, update.effective_chat.id)
+    elif entity.type == MessageEntity.MENTION: 
+        return get_user_id(text, update.effective_chat.id)
+    elif entity.type == MessageEntity.TEXT_MENTION:
         return entity.user.id
     
     return None
 
 
-async def extract_user_only(message) -> str:
-    return (await extract_user_and_reason(message))[0]
+async def extract_user_only(update: Update, message) -> str:
+    return (await extract_user_and_reason(update, message))[0]
 
 
-async def extract_user_and_reason(message: Message) -> Tuple[Optional[int], Optional[str]]:
-    print("DEBUGGING MESSAGES FOR EXTRACTION")
+async def extract_user_and_reason(update: Update, message: Message) -> Tuple[Optional[int], Optional[str]]:
+    LOGGER.info("DEBUGGING MESSAGES FOR EXTRACTION")
     message_args = message.text.strip().split()
-    print("MESSAGE ARGS: ", message_args)
     message_text = message.text
-    print("MESSAGE TEXT: ", message_text)
 
     user = None
     reason = None
 
     if message.reply_to_message: 
-        print("MESSAGE HAS BEEN REPLIED TO")
+        LOGGER.info("MESSAGE HAS BEEN REPLIED TO")
         original_message = message.reply_to_message
 
         if not original_message.from_user: # the message was sent on behalf of the chat
@@ -78,17 +72,17 @@ async def extract_user_and_reason(message: Message) -> Tuple[Optional[int], Opti
 
     # message is not replied and no reason provided
     if len(message_args) == 2:
-        print("LENGTH OF MESSAGE IS 2")
+        LOGGER.info("LENGTH OF MESSAGE IS 2")
         user = message_text.split(None, 1)[1]
-        return await extract_user_id(message, user), None
+        return await extract_user_id(update, message, user), None
     
     # message is not replied and reason is provided
     if len(message_args) > 2:
-        print("LENGTH OF MESSAGE IS GREATER THAN 2")
+        LOGGER.info("LENGTH OF MESSAGE IS GREATER THAN 2")
         user, reason = message_text.split(None, 2)[1:]
-        return await extract_user_id(message, user), reason
+        return await extract_user_id(update, message, user), reason
 
-    print("USER, REASON: ", user, reason)
+    LOGGER.info("USER, REASON: ", user, reason)
     return user, reason
 
 

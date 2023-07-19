@@ -1,6 +1,7 @@
 import threading
 
-from __init__ import BASE, SESSION, engine as ENGINE
+from src import dispatcher, BOT_USERNAME
+from src.core.sql import BASE, SESSION, engine as ENGINE
 from sqlalchemy import (
     Column, 
     ForeignKey,
@@ -69,21 +70,65 @@ class ChatMembers(BASE):
             self.chat.chat_id,
         )
 
-Users.__table__.create(bind=ENGINE)
-Chats.__table__.create(bind=ENGINE)
-ChatMembers.__table__.create(bind=ENGINE)
+def create_tables():
+    Users.__table__.create(bind=ENGINE)
+    Chats.__table__.create(bind=ENGINE)
+    ChatMembers.__table__.create(bind=ENGINE)
 
 # These functions below require a re-entry lock (RLock) because they are directly editing
 # information in the database tables
 
-#TODO add these functions later
+def check_bot_in_db():
+    with INSERTION_LOCK:
+        bot = Users(dispatcher.bot.id, BOT_USERNAME)
+        SESSION.merge(bot)
+        SESSION.commit()
+
+def update_user(user_id, username, chat_id=None, chat_name=None):
+    with INSERTION_LOCK:
+        user = SESSION.query(Users).get(user_id)
+
+        if not user:
+            user = Users(user_id, username)
+            SESSION.add(user)
+            SESSION.flush()
+        else:
+            user.username = username
+        
+        if not chat_id or not chat_name:
+            SESSION.commit()
+            return
+        
+        chat = SESSION.query(Chats).get(str(chat_id))
+        if not chat:
+            chat = Chats(str(chat_id), chat_name)
+            SESSION.add(chat)
+            SESSION.flush()
+        else:
+            chat.chat_name = chat_name
+
+        member = (
+            SESSION.query(ChatMembers)
+            .filter(ChatMembers.chat == chat.chat_id, ChatMembers.user == user.user_id)
+            .first()
+        )
+        if not member:
+            chat_member = ChatMembers(chat.chat_id, user.user_id)
+            SESSION.add(chat_member)
+            SESSION.flush()
+        
+        SESSION.commit()
 
 # These functions below do not require a re-entry insertion lock because they are only querying
 # specific tables for information
 
 def get_name_by_userid(user_id):
     try:
-        return SESSION.query(Users).get(Users.user_id == int(user_id)).first()
+        return (
+            SESSION.query(Users)
+            .filter(Users.user_id == int(user_id))
+            .all()
+        )
     finally:
         SESSION.close()
 
@@ -92,7 +137,26 @@ def get_userid_by_name(username):
         return (
             SESSION.query(Users)
             .filter(func.lower(Users.username) == username.lower())
+            .all()
         )
+    finally:
+        SESSION.close()
+
+def get_chat_members(chat_id):
+    try:
+        return SESSION.query(ChatMembers).filter(ChatMembers.chat == str(chat_id)).all()
+    finally:
+        SESSION.close()
+
+def get_all_chats():
+    try:
+        return SESSION.query(Chats).all()
+    finally:
+        SESSION.close()
+
+def get_all_users():
+    try:
+        return SESSION.query(Users).all()
     finally:
         SESSION.close()
 

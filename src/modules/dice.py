@@ -4,7 +4,7 @@ from src import dispatcher, LOGGER
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, constants
 from telegram.ext import CommandHandler, CallbackQueryHandler, CallbackContext
 
-LOGGER.info("Dice Module: Started initialisation")
+LOGGER.info("Dice Module: Started initialisation.")
 _MODULE_ = "Dice"
 _HELP_ = """
 /dice_help - Receive more information about the dice.
@@ -80,11 +80,11 @@ async def roll_dice(update: Update, context: CallbackContext) -> None:
                 LOGGER.error("Dice Module: send_dice() bot method was unsuccessfully called.")
 
 def main() -> None:
-    LOGGER.info("Dice Module: Adding context handlers")
+    LOGGER.info("Dice Module: Creating and adding handlers.")
     dispatcher.add_handler(CommandHandler("dice_help", help))
     dispatcher.add_handler(CommandHandler("dice", choose_dice_option))
     dispatcher.add_handler(CallbackQueryHandler(roll_dice))
-    dispatcher.run_polling()
+    #dispatcher.run_polling()
 
 
 if __name__ == '__main__':
