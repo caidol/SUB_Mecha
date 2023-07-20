@@ -71,9 +71,9 @@ class ChatMembers(BASE):
         )
 
 def create_tables():
-    Users.__table__.create(bind=ENGINE)
-    Chats.__table__.create(bind=ENGINE)
-    ChatMembers.__table__.create(bind=ENGINE)
+    Users.__table__.create(bind=ENGINE, checkfirst=True)
+    Chats.__table__.create(bind=ENGINE, checkfirst=True)
+    ChatMembers.__table__.create(bind=ENGINE, checkfirst=True)
 
 # These functions below require a re-entry lock (RLock) because they are directly editing
 # information in the database tables

@@ -77,6 +77,31 @@ def user_is_admin(func):
 
     return is_admin
 
+def user_is_admin_no_reply(func):
+    @wraps(func)
+    async def is_admin(update: Update, context: CallbackContext, *args, **kwargs):
+        chat = update.effective_chat
+        user = update.effective_user
+
+        if user and user_admin_check(chat, user.id):
+            return await func(update, context, *args, **kwargs)
+        elif not user:
+            pass
+
+    return is_admin
+
+def user_is_not_admin(func):
+    @wraps(func)
+    async def is_not_admin(update: Update, context: CallbackContext, *args, **kwargs):
+        bot = context.bot
+        user = update.effective_user 
+        chat = update.effective_chat
+
+        if user and not user_admin_check(chat, user.id):
+            return await func(update, context, *args, **kwargs)
+        
+    return is_not_admin
+
 def can_promote(func):
     @wraps(func)
     async def promote_rights(update: Update, context: CallbackContext, *args, **kwargs):

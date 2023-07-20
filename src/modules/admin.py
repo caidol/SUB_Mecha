@@ -2,19 +2,16 @@ import asyncio
 import re
 import html
 from time import time
-
 from telegram import Update, ChatPermissions, Chat, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.error import RetryAfter, BadRequest, Forbidden
 from telegram.helpers import mention_html
-from telegram.ext import CommandHandler, MessageHandler, ContextTypes, filters, CallbackContext
-
+from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes, filters, CallbackContext
 from src import LOGGER, dispatcher, DEV_ID
 from src.core.decorators.chat import can_promote, bot_is_admin, user_is_admin, can_pin, can_invite, can_restrict_members, can_delete_messages
-from src.utils.extraction import extract_user_and_reason, extract_user_only
-from src.utils.groups import time_formatter
-
 from src.core.sql.users_sql import get_name_by_userid 
+from src.utils.extraction import extract_user_and_reason, extract_user_only
+from src.utils.string_handling import time_formatter
 
 __MODULE__ = "Admin"
 __HELP__ = """
@@ -29,24 +26,19 @@ __HELP__ = """
 /listban - Ban a user from groups listed in a message
 /listunban - Unban a user from groups listed in a message
 /ban_ghosts - Ban all the deleted accounts in a chat
-/warn - Warn a user
-/dwarn - Delete the replied message and consequently warn the sender of that message
-/rmwarns - Remove all warnings of a user
-/warns - Show warnings of a user
 /kick - Kick a user (almost done)
 /dkick - Delete the replied message and consequently kick the sender of that message (almost done)
 /purge - Purge messages (done)
 /purge [n] - Purge "n" number of messages from replied message (done)
-/del - Delete a replied message
+/del - Delete a replied message (done)
 /promote - Promote a chat member (done)
-/fullpromote - Promote a member with all rights
+/fullpromote - Promote a member with all rights (done)
 /demote - Demote a chat member (done)
 /pin - Pin a message (almost done)
 /unpin - Unpin a message  (almost done)
-/mute - Mute a chat member
-/tmute - Mute a chat member for a specific time
-/unmute - Unmute a chat member
-/report - Report a message to the admins
+/mute - Mute a chat member (done)
+/tmute - Mute a chat member for a specific time (need to check)
+/unmute - Unmute a chat member (done)
 /invite - Send an invite link (done)
 """
 
@@ -267,52 +259,6 @@ async def purge(update: Update, context: CallbackContext) -> None:
 
 @bot_is_admin
 @user_is_admin
-@can_pin
-async def pin(update: Update, context: CallbackContext) -> None:
-    args = context.args 
-    chat = update.effective_chat
-    message = update.effective_message
-
-    is_group = (chat.type != "private" and chat.type != "channel") # groups are neither private chats or channels
-    previous_message = message.reply_to_message # the previous message that the pin was replied to
-    
-    is_silent = True
-    if len(args) >= 1 and previous_message:
-        is_silent = not (
-            args[0].lower() == "loud"
-            or args[0].lower() == "notify"
-        )
-
-    if previous_message and is_group:
-        try:
-            await message.chat.pin_message(
-                message_id=previous_message.id, disable_notification=is_silent,
-            )
-            return
-        except BadRequest as excp:
-            LOGGER.error("Admin: A bad request occurred when trying to pin a replied message.")
-            raise excp
-
-@bot_is_admin
-@user_is_admin
-@can_promote
-async def unpin(update: Update, context: CallbackContext) -> None:
-    message = update.effective_message
-    chat = update.effective_chat
-    user = update.effective_user
-
-    previous_message = message.reply_to_message
-
-    try:
-        await message.chat.unpin_message(
-            message_id=previous_message.id,
-        )
-    except BadRequest as excp:
-            LOGGER.error("Admin: A bad request occurred when trying to unpin a replied message.")
-            raise excp
-
-@bot_is_admin
-@user_is_admin
 @can_delete_messages
 async def delete(update: Update, context: CallbackContext) -> None:
     message = update.effective_message
@@ -349,13 +295,17 @@ async def mute(update: Update, context: CallbackContext) -> None:
         return await update.message.reply_text(
             "I'm unable to mute admins - I'm afraid it's just the rules."
         )
-
     chat_member = (await chat.get_member(user_id))
+    keyboard = [
+        [InlineKeyboardButton("Unmute  🚨", callback_data=f"unmute_{user_id}")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
     mute_message = (
         f"<b>Muted User:</b> {chat_member.user.mention_html()}\n"
         f"<b>Muted By:</b> {message.from_user.mention_html() if message.from_user else 'Anonymous'}\n"
     )
+
     if args[0] == "tmute":
         split = reason.split(None, 1)
         time_length = split[0]
@@ -376,6 +326,7 @@ async def mute(update: Update, context: CallbackContext) -> None:
                 await update.message.reply_text(
                     mute_message, 
                     parse_mode=ParseMode.HTML,
+                    reply_markup=reply_markup,
                 )
             else:
                 await update.message.reply_text("You cant use more than 99.")
@@ -389,20 +340,7 @@ async def mute(update: Update, context: CallbackContext) -> None:
         user_id,
         permissions=ChatPermissions(),
     )
-    await message.reply_text(mute_message, parse_mode=ParseMode.HTML)
-
-@bot_is_admin
-@user_is_admin
-@can_restrict_members
-async def ban_deleted_accounts(update: Update, context: CallbackContext) -> None:
-    message = update.effective_message
-    chat = update.effective_chat
-    chat_id = message.chat.id
-    deleted_users = []
-    banned_users = 0
-
-    #TODO work on this later
-    #for index in chat.get_members
+    await message.reply_text(mute_message, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
 
 @bot_is_admin
 @user_is_admin
@@ -413,7 +351,7 @@ async def unmute(update: Update, context: CallbackContext) -> None:
     user_id = await extract_user_only(update, message)
     if not user_id:
         return await update.message.reply_text("I can't find that user.")
-    
+
     await message.chat.restrict_member(
         user_id,
         permissions= ChatPermissions(
@@ -439,17 +377,15 @@ async def unmute(update: Update, context: CallbackContext) -> None:
 
 async def unmute_callback(update: Update, context: CallbackContext) -> None:
     message = update.effective_message
-    await message.reply_text("test")
     chat = update.effective_chat
     
     callback_query = update.callback_query
     await callback_query.answer()
     
-    if callback_query.data:
-        args = (callback_query.data).split('_')
-        if args[0] == "unmute":
-            user_id = args[1]
-    
+    args = (callback_query.data).split('_')
+    if args[0] == "unmute":
+        user_id = args[1]
+
     if not user_id:
         return await update.message.reply_text("I can't find that user.")
     
@@ -475,6 +411,19 @@ async def unmute_callback(update: Update, context: CallbackContext) -> None:
     )
     chat_member = (await chat.get_member(user_id))
     await message.reply_text(f"Unmuted {chat_member.user.mention_html()}!", parse_mode=ParseMode.HTML)
+
+@bot_is_admin
+@user_is_admin
+@can_restrict_members
+async def ban_deleted_accounts(update: Update, context: CallbackContext) -> None:
+    message = update.effective_message
+    chat = update.effective_chat
+    chat_id = message.chat.id
+    deleted_users = []
+    banned_users = 0
+
+    #TODO work on this later
+    #for index in chat.get_members
 
 @bot_is_admin
 @user_is_admin
@@ -502,7 +451,7 @@ async def invite(update: Update, context: CallbackContext) -> None:
 @bot_is_admin
 @user_is_admin
 @can_restrict_members
-async def ban(update: Update, context: CallbackContext) -> None:
+async def ban(update: Update, context: CallbackContext) -> None: # fix this function
     BOT_ID = context.bot.id
     message = update.effective_message
     chat = update.effective_chat
@@ -689,15 +638,15 @@ if __name__ == '__main__':
     UNMUTE_HANDLER = CommandHandler(
         "unmute", unmute,
     )
-    UNMUTE_CALLBACK_HANDLER = MessageHandler(
-        filters.TEXT & ~filters.COMMAND, unmute_callback
+    UNMUTE_CALLBACK_HANDLER = CallbackQueryHandler(
+        callback=unmute_callback, pattern="unmute_[0-9]{5,10}", 
     )
     PURGE_HANDLER = CommandHandler(
         "purge", purge, filters=~filters.ChatType.PRIVATE,
-        )
+    )
     PROMOTE_HANDLER = CommandHandler(
         ["promote", "fullpromote"], promote, filters=~filters.ChatType.PRIVATE,
-        )
+    )
     DEMOTE_HANDLER = CommandHandler(
         "demote", demote, filters=~filters.ChatType.PRIVATE,
     )
@@ -706,13 +655,13 @@ if __name__ == '__main__':
     )
     UNPIN_HANDLER = CommandHandler(
         "unpin", unpin, filters=~filters.ChatType.PRIVATE,
-        )
+    )
     DELETE_HANDLER = CommandHandler(
         "del", delete, filters=~filters.ChatType.PRIVATE,
     )
     INVITE_HANDLER = CommandHandler(
         "invite", invite, filters=~filters.ChatType.PRIVATE,
-        )
+    )
 
     dispatcher.add_handler(BAN_HANDLER)
     dispatcher.add_handler(UNBAN_HANDLER)
