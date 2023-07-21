@@ -10,6 +10,7 @@ from telegram.constants import ParseMode
 
 import src.core.sql.blacklist_sql as blacklist_sql
 from src import dispatcher, LOGGER
+from src.modules.warns import warn
 from src.core.decorators.chat import user_is_admin, user_is_not_admin
 from src.utils.extraction import extract_text
 from src.utils.string_handling import time_formatter
@@ -292,7 +293,12 @@ async def delete_blacklist(update: Update, context: CallbackContext) -> None:
                         await message.delete()
                     except BadRequest:
                         pass 
-                    #TODO finish with warn 
+                    warn(
+                        update, context,
+                        user, chat,
+                        reason, message,
+                        user #TODO may need to check this
+                    )
                     return 
                 elif get_mode == 3:
                     try:
@@ -414,6 +420,5 @@ if __name__ == '__main__':
     dispatcher.add_handler(ADD_BLACKLIST_HANDLER)
     dispatcher.add_handler(UNBLACKLIST_HANDLER)
     dispatcher.add_handler(BLACKLISTMODE_HANDLER)
-    dispatcher.add_handler(BLACKLIST_DELETE_HANDLER)
+    dispatcher.add_handler(BLACKLIST_DELETE_HANDLER, group=BLACKLIST_GROUP)
 
-    
