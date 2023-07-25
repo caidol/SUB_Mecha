@@ -6,7 +6,7 @@ from telegram.error import Forbidden
 from telegram.ext import CallbackContext
 
 from src import LOGGER, dispatcher
-from src.utils.groups import get_admin_permissions
+from src.utils.misc import get_admin_permissions
 
 
 async def bot_admin_check(chat: Chat, bot_id: int, bot_member: ChatMember = None) -> bool:

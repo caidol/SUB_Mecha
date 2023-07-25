@@ -10,7 +10,6 @@ from src.core.sql import SESSION, BASE, engine as ENGINE
 # 4 = tban
 # 5 = tmute
 
-
 DEFAULT_COUNT = 1
 DEFAULT_LIMIT = 0
 DEFAULT_OBJECT = (None, DEFAULT_COUNT, DEFAULT_LIMIT)

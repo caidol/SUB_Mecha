@@ -1,1 +1,0 @@
-# This module is for messages that are sent onto a group chat upon a user joining or leaving the chat.

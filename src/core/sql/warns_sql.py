@@ -1,7 +1,30 @@
 import threading
-from src.core.sql import BASE, SESSION, engine as ENGINE
-from sqlalchemy import Boolean, Column, Integer, String, UnicodeText, distinct, func 
+from sqlalchemy import Boolean, Column, Integer, String, UnicodeText, ARRAY, distinct, func 
 from sqlalchemy.dialects import postgresql
+
+#from src.core.sql import SESSION, BASE, engine as ENGINE (keep commented for temporary purposes)
+
+# Everything below this comment is a temp solution
+
+from src import LOGGER#, DATABASE_URL
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import scoped_session, sessionmaker
+
+DATABASE_URL = "sqlite:///warns.db"
+LOGGER.info("Database URL: {}".format(DATABASE_URL))
+
+def initialise_engine() -> scoped_session:
+    global ENGINE
+    ENGINE = create_engine(DATABASE_URL, echo=True)
+    BASE.metadata.bind = ENGINE
+    BASE.metadata.create_all(ENGINE)
+    return scoped_session(sessionmaker(bind=ENGINE, autoflush=False))
+
+BASE = declarative_base()
+SESSION = initialise_engine()
+
+# Everything above this comment is a temp solution
 
 class Warns(BASE):
     __tablename__ = "warns"
@@ -9,7 +32,7 @@ class Warns(BASE):
     user_id = Column(Integer, primary_key=True)
     chat_id = Column(String(14), primary_key=True)
     num_warns = Column(Integer, default=0)
-    reasons = Column(postgresql.ARRAY(UnicodeText))
+    reasons = Column(UnicodeText, ARRAY(Integer))
 
     def __init__(self, user_id, chat_id):
         self.user_id = user_id
@@ -60,9 +83,10 @@ class WarnSettings(BASE):
             self.chat_id, self.warn_limit, self.soft_warn,
         )
 
-Warns.__table__.create(bind=ENGINE)
-WarnFilters.__table__.create(bind=ENGINE)
-WarnSettings.__table__.create(bind=ENGINE)
+def create_tables():
+    Warns.__table__.create(bind=ENGINE)
+    WarnFilters.__table__.create(bind=ENGINE)
+    WarnSettings.__table__.create(bind=ENGINE)
 
 WARN_INSERTION_LOCK = threading.RLock()
 WARN_FILTER_INSERTION_LOCK = threading.RLock()
@@ -261,3 +285,5 @@ def migrate_chat(old_chat_id, new_chat_id):
         for setting in chat_settings:
             setting.chat_id = str(new_chat_id)
         SESSION.commit()
+
+#create_tables()

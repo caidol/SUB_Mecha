@@ -1,8 +1,9 @@
 import html
 import asyncio
-import re 
+import re
+from typing import Optional
 
-from telegram import Update, ChatPermissions
+from telegram import Update, Message, Chat, User, ChatPermissions
 from telegram.error import BadRequest, Forbidden
 from telegram.ext import CommandHandler, MessageHandler, CallbackContext, filters
 from telegram.helpers import mention_html
@@ -22,7 +23,8 @@ BLACKLIST_GROUP = 11
 @user_is_admin
 @typing_action
 async def get_blacklist(update: Update, context: CallbackContext) -> None:
-    chat = update.effective_chat
+    chat: Optional[Chat] = update.effective_chat
+    message: Optional[Message] = update.effective_message
 
     if chat.type == "private":
         return 
@@ -33,27 +35,29 @@ async def get_blacklist(update: Update, context: CallbackContext) -> None:
     all_blacklisted = blacklist_sql.get_chat_blacklist(chat_id)
 
     for trigger in all_blacklisted:
-        filter_list += " - <code>{}</code>\n".format(html.escape(trigger))
+        print("trigger: ", trigger.trigger)
+        filter_list += " - <code>{}</code>\n".format(html.escape(trigger.trigger))
 
-    split_text = split_message()
+    split_text = split_message(filter_list)
     for text in split_text:
         if filter_list == "Current blacklisted words in <b>{}</b>:\n".format(
             html.escape(chat_name)
         ): # if the message has not been appended to as no blacklisted words were found
-            context.bot.send_message(
-                "No blacklisted words in <b>{}</b>!".format(html.escape(chat_name)),
+            await context.bot.send_message(
+                chat_id,
+                text="No blacklisted words in <b>{}</b>!".format(html.escape(chat_name)),
                 parse_mode=ParseMode.HTML,
             )
             return
         
-        context.bot.send_message(text=text, parse_mode=ParseMode.HTML)
+        await context.bot.send_message(chat_id, text=text, parse_mode=ParseMode.HTML)
         
 
 @user_is_admin
 @typing_action
 async def add_blacklist(update: Update, context: CallbackContext) -> None:
-    message = update.effective_message
-    chat = update.effective_chat
+    message: Optional[Message] = update.effective_message
+    chat: Optional[Chat] = update.effective_chat
     text = message.text.split(None, 1)
     
     if chat.type == "private":
@@ -71,13 +75,15 @@ async def add_blacklist(update: Update, context: CallbackContext) -> None:
 
         if len(words_to_blacklist) == 1:
             await context.bot.send_message(
-                "Added blacklist <code>{}</code> in chat <b>{}</b!".format(
-                    html.escape(words_to_blacklist[0], html.escape(chat_name))
+                chat_id,
+                "Added blacklist <code>{}</code> in chat: <b>{}</b>!".format(
+                    html.escape(words_to_blacklist[0]), html.escape(chat_name),
                 ),
                 parse_mode=ParseMode.HTML,
             )
         else:
             await context.bot.send_message(
+                chat_id,
                 "Added blacklist trigger: <code>{}</code> in <b>{}</b>!".format(
                     len(words_to_blacklist), html.escape(chat_name)
                 ),
@@ -85,16 +91,16 @@ async def add_blacklist(update: Update, context: CallbackContext) -> None:
             )
     else:
         await context.bot.send_message(
-            "Tell me which words you would like to add into the blacklist."
+            chat_id,
+            text="Tell me which words you would like to add into the blacklist."
         )
 
 @user_is_admin
 @typing_action
 async def unblacklist(update: Update, context: CallbackContext) -> None:
-    message = update.effective_message
-    chat = update.effective_chat
+    message: Optional[Message] = update.effective_message
+    chat: Optional[Chat] = update.effective_chat
     text = message.text.split(None, 1)
-
     
     if chat.type == "private":
         return 
@@ -115,7 +121,7 @@ async def unblacklist(update: Update, context: CallbackContext) -> None:
         if len(words_to_unblacklist) == 1:
             if successful:
                 await context.bot.send_message(
-                    update.effective_message,
+                    chat_id,
                     "Removed <code>{}</code> from blacklist in <b>{}</b>!".format(
                         html.escape(words_to_unblacklist[0]), html.escape(chat_name),
                     ),
@@ -123,10 +129,12 @@ async def unblacklist(update: Update, context: CallbackContext) -> None:
                 )
             else:
                 await context.bot.send_message(
+                    chat_id,
                     "This is not a blacklist trigger."
                 )
         elif successful == len(words_to_unblacklist):
             await context.bot.send_message(
+                chat_id,
                 "Removed <code>{}</code> from blacklist in <b>{}</b>!".format(
                     successful, html.escape(chat_name)
                 ),
@@ -134,10 +142,12 @@ async def unblacklist(update: Update, context: CallbackContext) -> None:
             )
         elif not successful:
             await context.bot.send_message(
+                chat_id,
                 "None of these triggers exist so they can't be removed."
             )
         else:
             await context.bot.send_message(
+                chat_id,
                 "Removed <code>{}</code> from blacklist in <b>{}</b>!\n{} did not exist, so were not removed.".format(
                     successful, html.escape(chat_name), len(words_to_unblacklist) - successful
                 ),
@@ -145,19 +155,21 @@ async def unblacklist(update: Update, context: CallbackContext) -> None:
             )
     else:
         await context.bot.send_message(
+            chat_id,
             "Tell me which words you would like to be removed from the blacklist."
         )
 
 @user_is_admin
 @typing_action
 async def blacklist_mode(update: Update, context: CallbackContext) -> None:
-    chat = update.effective_chat
-    message = update.effective_message
-    user = update.effective_user
+    chat: Optional[Chat] = update.effective_chat
+    message: Optional[Message] = update.effective_message
+    user: Optional[User] = update.effective_user
     args = context.args 
 
     if message.chat.type == "private":
-        context.bot.send_message(
+        await context.bot.send_message(
+            chat_id,
             "This command can only be used in a group and not in a PM."
         )
         return 
@@ -185,7 +197,8 @@ async def blacklist_mode(update: Update, context: CallbackContext) -> None:
             blacklist_sql.set_blacklist_severity(chat_id, 5, "0")
         elif args[0].lower() == "tban":
             if len(args) == 1:
-                context.bot.send_message(
+                await context.bot.send_message(
+                    chat_id,
                     """It looks like you tried to set the time value for blacklist but you didn't specify the time - Try `/blacklistmode tban <timevalue>`
 
 Examples of time values: 5m = 5 minutes, 6h = 6 hours, 3d = 3 days.""",
@@ -194,7 +207,9 @@ Examples of time values: 5m = 5 minutes, 6h = 6 hours, 3d = 3 days.""",
                 return 
             ban_time = time_formatter(message, args[1])
             if not ban_time:
-                context.bot.send_message("""Invalid time value!
+                await context.bot.send_message(
+                    chat_id,
+                    """Invalid time value!
 Examples of time values: 5m = 5 minutes, 6h = 6 hours, 3d = 3 days.""",
                     parse_mode=ParseMode.MARKDOWN,
                 )
@@ -203,7 +218,8 @@ Examples of time values: 5m = 5 minutes, 6h = 6 hours, 3d = 3 days.""",
             blacklist_sql.set_blacklist_severity(chat_id, 6, str(args))
         elif args[0].lower() == "tmute":
             if len(args) == 1:
-                context.bot.send_message(
+                await context.bot.send_message(
+                    chat_id,
                     """It looks like you tried to set the time value for blacklist but you didn't specify the time - Try `/blacklistmode tmute <timevalue>`
 
 Examples of time values: 5m = 5 minutes, 6h = 6 hours, 3d = 3 days.""",
@@ -212,7 +228,9 @@ Examples of time values: 5m = 5 minutes, 6h = 6 hours, 3d = 3 days.""",
                 return 
             mute_time = time_formatter(message, args[1])
             if not mute_time:
-                context.bot.send_message("""Invalid time value!
+                await context.bot.send_message(
+                    chat_id,
+                    """Invalid time value!
 Examples of time values: 5m = 5 minutes, 6h = 6 hours, 3d = 3 days.""",
                     parse_mode=ParseMode.MARKDOWN,
                 )
@@ -220,12 +238,13 @@ Examples of time values: 5m = 5 minutes, 6h = 6 hours, 3d = 3 days.""",
             set_blacklist_type = "temporarily mute for {}".format(args[1])
             blacklist_sql.set_blacklist_severity(chat_id, 7, str(args[1]))
         else:
-            context.bot.send_message(
+            await context.bot.send_message(
+                chat_id,
                 "I only understand: off/del/warn/ban/kick/mute/tban/tmute",
             )
             return
         text = "Changed blacklist mode: `{}`!".format(set_blacklist_type)
-        context.bot.send_message(text, parse_mode=ParseMode.MARKDOWN)
+        await context.bot.send_message(chat_id, text, parse_mode=ParseMode.MARKDOWN)
         return (
             "<b>{}:</b>\n"
             "<b>Admin:</b> {}"
@@ -254,7 +273,8 @@ Examples of time values: 5m = 5 minutes, 6h = 6 hours, 3d = 3 days.""",
         elif get_mode == 7:
             set_blacklist_type = "temporarily mute for {}".format(get_value)
         else:
-            context.bot.send_message(
+            await context.bot.send_message(
+                chat_id,
                 "Current blacklistmode: *{}*.".format(set_blacklist_type),
                 parse_mode=ParseMode.MARKDOWN,
             )
@@ -262,19 +282,25 @@ Examples of time values: 5m = 5 minutes, 6h = 6 hours, 3d = 3 days.""",
 
 @user_is_admin
 async def delete_blacklist(update: Update, context: CallbackContext) -> None:
-    chat = update.effective_chat
-    message = update.effective_message
-    user = update.effective_user
+    chat: Optional[Chat] = update.effective_chat
+    message: Optional[Message] = update.effective_message
+    user: Optional[User] = update.effective_user
+    chat_id = chat.id
     user_id = user.id
     bot = context.bot 
     to_match = extract_text(message)
     if not to_match:
         return 
+    args = message.text.split(None, 1)
+    if args[0][0] == "/": # for the timebeing to check if command -> later can add giant list of all commands to check
+        return
     
+    LOGGER.info("It runs at least.")
+
     get_mode, get_value = blacklist_sql.get_blacklist_setting(chat.id)
     chat_filters = blacklist_sql.get_chat_blacklist(chat.id)
     for trigger in chat_filters:
-        pattern = r"( |^|[^\w])" + re.escape(trigger) + r"( |$|[^\w])"
+        pattern = r"( |^|[^\w])" + re.escape(trigger.trigger) + r"( |$|[^\w])"
         if re.search(pattern, to_match, flags=re.IGNORECASE):
             try:
                 if get_mode == 0:
@@ -284,8 +310,10 @@ async def delete_blacklist(update: Update, context: CallbackContext) -> None:
                         await message.delete()
                     except BadRequest:
                         pass
-                    context.bot.send_message(
-                        f"Please don't use that blacklisted word again {mention_html(user_id, html.escape(user.first_name))}."
+                    await context.bot.send_message(
+                        chat_id,
+                        f"Please don't use that blacklisted word again {mention_html(user_id, html.escape(user.first_name))}.",
+                        parse_mode=ParseMode.HTML,
                     )
                     return
                 elif get_mode == 2:
@@ -296,7 +324,7 @@ async def delete_blacklist(update: Update, context: CallbackContext) -> None:
                     warn(
                         update, context,
                         user, chat,
-                        reason, message,
+                        "user has violated server rules from blacklist.", message,
                         user #TODO may need to check this
                     )
                     return 
@@ -312,6 +340,7 @@ async def delete_blacklist(update: Update, context: CallbackContext) -> None:
                     )
 
                     await context.bot.send_message(
+                        chat_id,
                         f"Muted {mention_html(user_id, html.escape(user.first_name))} for using a blacklisted word.",
                         parse_mode=ParseMode.HTML,
                     )
@@ -340,7 +369,8 @@ async def delete_blacklist(update: Update, context: CallbackContext) -> None:
                             )
                         except Forbidden:
                             pass
-                    context.bot.send_message(
+                    await context.bot.send_message(
+                        chat_id,
                         f"Kicked {user.first_name} for using a blacklisted word."
                     )
 
@@ -352,7 +382,8 @@ async def delete_blacklist(update: Update, context: CallbackContext) -> None:
                         pass 
                     await message.chat.ban_member(user_id)
 
-                    context.bot.send_message(
+                    await context.bot.send_message(
+                        chat_id,
                         f"Banned {user.first_name} for using a blacklisted word."
                     )
                     return 
@@ -368,7 +399,8 @@ async def delete_blacklist(update: Update, context: CallbackContext) -> None:
                         until_date=bantime,
                         permissions=ChatPermissions(can_send_messages=False),
                     )
-                    context.bot.send_message(
+                    await context.bot.send_message(
+                        chat_id,
                         f"Banned {user.first_name} until '{get_value}' for using blacklisted word: {trigger}!",
                     )
                     return
@@ -384,7 +416,8 @@ async def delete_blacklist(update: Update, context: CallbackContext) -> None:
                         until_date=mutetime,
                         permissions=ChatPermissions(can_send_messages=False),
                     )
-                    context.bot.send_message(
+                    await context.bot.send_message(
+                        chat_id,
                         f"Muted {user.first_name} until '{get_value}' for using blacklisted word: {trigger}!",
                     )
                     return
@@ -405,15 +438,30 @@ def __stats__():
         blacklist_sql.num_blacklist_filters(), blacklist_sql.get_num_blacklist_filter_chats()
     )
 
+__module__ = "Blacklists"
+
+__help__ = """
+
+Blacklists are used to stop certain keywords from being said in a group. 
+
+These blacklists do not apply to group admins:
+
+/getblacklist: view the current blacklisted words
+
+Admin only:
+/addblacklist <trigger(s)>: Add a trigger to the blacklist. Different triggers must be separated per line.
+/unblacklist <trigger(s)>: Remove a trigger(s) from the blacklist. Different triggers must be separated per line.
+/blacklistmode <off/del/warn/ban/kick/mute/tban/tmute>: Action to perform when someone sends blacklisted words.
+"""
+
 if __name__ == '__main__':
-    GET_BLACKLIST_HANDLER = CommandHandler("getblacklist")
+    GET_BLACKLIST_HANDLER = CommandHandler("getblacklist", get_blacklist)
     ADD_BLACKLIST_HANDLER = CommandHandler("addblacklist", add_blacklist)
     UNBLACKLIST_HANDLER = CommandHandler("unblacklist", unblacklist)
-    BLACKLISTMODE_HANDLER = CommandHandler("blacklistmode", blacklist_mode, pass_args=True)
+    BLACKLISTMODE_HANDLER = CommandHandler("blacklistmode", blacklist_mode)
     BLACKLIST_DELETE_HANDLER = MessageHandler(
-        (filters.TEXT | filters.COMMAND | filters.Sticker | filters.PHOTO) & filters.ChatType.GROUP, 
-        delete_blacklist,
-        allow_edit=True
+        (filters.TEXT | ~filters.COMMAND | filters.PHOTO),
+        callback=delete_blacklist,
     )
 
     dispatcher.add_handler(GET_BLACKLIST_HANDLER)
@@ -421,4 +469,4 @@ if __name__ == '__main__':
     dispatcher.add_handler(UNBLACKLIST_HANDLER)
     dispatcher.add_handler(BLACKLISTMODE_HANDLER)
     dispatcher.add_handler(BLACKLIST_DELETE_HANDLER, group=BLACKLIST_GROUP)
-
+    dispatcher.run_polling()
