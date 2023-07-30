@@ -4,7 +4,10 @@ import logging
 import time
 import os
 import re
+import spamwatch
 from telegram.ext import Application 
+
+from aiohttp import ClientSession
 
 # retrieve program path
 PROGRAM_PATH = re.match(r"(.*)\/src", os.getcwd())
@@ -105,6 +108,8 @@ except ValueError:
 LOAD = []
 NO_LOAD = []
 BOT_START_TIME = time.time()
+
+aiohttpsession = ClientSession()
 
 # for debug purposes
 '''

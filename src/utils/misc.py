@@ -2,12 +2,21 @@ from random import randint, choice
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from datetime import datetime, timedelta
 
-from src import dispatcher
+from src import dispatcher, aiohttpsession as aiosession
+from io import BytesIO
 from telegram import Chat, Message
 
 import random
 from typing import List
+from telegram import InlineKeyboardButton
 from telegram.constants import MessageLimit
+
+async def make_carbon(code):
+    url = "https://carbonara.solopov.dev/api/cook"
+    async with aiosession.post(url, json={"code": code}) as resp:
+        image = BytesIO(await resp.read())
+    image.name = "smb_carbon.png"
+    return image
 
 def split_message(message: str) -> List[str]:
     if len(message) < MessageLimit.MAX_TEXT_LENGTH:
@@ -111,3 +120,23 @@ async def get_admin_permissions(chat_id: int, user_id: int) -> list:
         admin_permissions.append("can_post_messages")
 
     return admin_permissions
+
+def build_keyboard(buttons):
+    keyb = []
+    for btn in buttons:
+        if btn.same_line and keyb:
+            keyb[-1].append(InlineKeyboardButton(btn.name, url=btn.url))
+        else:
+            keyb.append([InlineKeyboardButton(btn.name, url=btn.url)])
+
+    return keyb
+
+def revert_buttons(buttons):
+    res = ""
+    for btn in buttons:
+        if btn.same_line:
+            res += "\n[{}](buttonurl://{}:same)".format(btn.name, btn.url)
+        else:
+            res += "\n[{}](buttonurl://{})".format(btn.name, btn.url)
+    
+    return res
