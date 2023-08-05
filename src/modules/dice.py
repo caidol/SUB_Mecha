@@ -1,12 +1,14 @@
-import logging # as a test
+import re 
 
 from src import dispatcher, LOGGER
+from src.core.decorators.chat import is_not_blacklisted
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, constants
 from telegram.ext import CommandHandler, CallbackQueryHandler, CallbackContext
+from telegram.constants import DiceEmoji
 
 LOGGER.info("Dice Module: Started initialisation.")
-_MODULE_ = "Dice"
-_HELP_ = """
+__module_name__ = "Dice"
+__help__ = """
 /dice_help - Receive more information about the dice.
 /dice - Roll a dice.
 """
@@ -33,17 +35,16 @@ If the emoji is 🎰, each value corresponds to a unique combination of symbols.
 
 KEYBOARD = [
         [
-            InlineKeyboardButton(constants.DiceEmoji.BASKETBALL, callback_data="basketball"),
-            InlineKeyboardButton(constants.DiceEmoji.BOWLING, callback_data="bowling"),
-            InlineKeyboardButton(constants.DiceEmoji.DARTS, callback_data="darts")
+            InlineKeyboardButton(constants.DiceEmoji.BASKETBALL, callback_data=f'dice_emoji(basketball)'),
+            InlineKeyboardButton(constants.DiceEmoji.BOWLING, callback_data='dice_emoji(bowling)'),
+            InlineKeyboardButton(constants.DiceEmoji.DARTS, callback_data='dice_emoji(darts)')
         ],
         [
-            InlineKeyboardButton(constants.DiceEmoji.DICE, callback_data="dice"),
-            InlineKeyboardButton(constants.DiceEmoji.FOOTBALL, callback_data="football"),
-            InlineKeyboardButton(constants.DiceEmoji.SLOT_MACHINE, callback_data="slot_machine"),
+            InlineKeyboardButton(constants.DiceEmoji.DICE, callback_data='dice_emoji(dice)'),
+            InlineKeyboardButton(constants.DiceEmoji.FOOTBALL, callback_data='dice_emoji(football)'),
+            InlineKeyboardButton(constants.DiceEmoji.SLOT_MACHINE, callback_data='dice_emoji(slot_machine)'),
         ]
     ]
-
 
 async def help(update: Update, context: None) -> None:
     message_id = update.effective_message.id
@@ -55,7 +56,7 @@ async def help(update: Update, context: None) -> None:
 
 async def choose_dice_option(update: Update, context: None) -> None:
     reply_markup = InlineKeyboardMarkup(KEYBOARD)
-    
+
     try:
         await update.message.reply_text("Please choose:", reply_markup=reply_markup)
         LOGGER.info("Dice Module: Successfully sent inline keyboard for dice option.")
@@ -71,25 +72,25 @@ async def roll_dice(update: Update, context: CallbackContext) -> None:
         LOGGER.info("Dice Module: Callback query for rolling dice was awaited and returned a null value.")
         return
 
-    for key, emoji in DICE_OPTIONS.items():
-        if query.data == key:
-            try:
-                await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
-                LOGGER.info("Dice Module: send_dice() bot method was successfully called.")
-            except:
-                LOGGER.error("Dice Module: send_dice() bot method was unsuccessfully called.")
+    match = re.match(r"dice_emoji\((.+?)\)", query.data)
+    if match:
+        value = match.group(1)
 
-def main() -> None:
-    LOGGER.info("Dice Module: Creating and adding handlers.")
-    dispatcher.add_handler(CommandHandler("dice_help", help))
-    dispatcher.add_handler(CommandHandler("dice", choose_dice_option))
-    dispatcher.add_handler(CallbackQueryHandler(roll_dice))
-    #dispatcher.run_polling()
+        for key, emoji in DICE_OPTIONS.items():
+            if value == key:
+                try:
+                    await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
+                    LOGGER.info("Dice Module: send_dice() bot method was successfully called.")
+                except:
+                    LOGGER.error("Dice Module: send_dice() bot method was unsuccessfully called.")
 
+__module_name__ = "Dice"
+__help__ = """
+• `/dice` - Roll a dice
 
-if __name__ == '__main__':
-    try:
-        main()
-        LOGGER.info("Dice Module: Initialisation has finished successfully.")
-    except:
-        LOGGER.error("Dice Module: Unsuccessfull initialisation.")
+• `/dicehelp` - Get information about the dice values when you roll.
+"""
+
+dispatcher.add_handler(CommandHandler("dicehelp", help))
+dispatcher.add_handler(CommandHandler("dice", choose_dice_option))
+dispatcher.add_handler(CallbackQueryHandler(roll_dice, pattern=r"dice_emoji"))

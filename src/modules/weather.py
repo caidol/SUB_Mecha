@@ -1,7 +1,7 @@
 import pyowm
-import requests
 import json
 import math
+import re
 
 from src import LOGGER, OWM_API_TOKEN, dispatcher
 import src.utils.weather_managers as manager
@@ -9,7 +9,7 @@ import src.utils.weather_managers as manager
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CommandHandler, 
-    ContextTypes, 
+    CallbackContext, 
     MessageHandler, 
     ConversationHandler, 
     CallbackQueryHandler,
@@ -17,17 +17,11 @@ from telegram.ext import (
 )
 
 LOGGER.info("Weather: Started initialisation.")
-_MODULE_ = "weather"
-_HELP_ = """
-/currentForecast - Get the current weather forecast for a location
-/dayForecast[n] - Get the weather forecast for the next n days (range of n is 1 to 5)
-/hourForecast[n] - Get the weather forecast for the next n 3 HOUR PERIODS (range of n is 1 to 8).
-"""
 
 LOCATION_PARAMETER = range(1)
 
 
-async def request_for_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def request_for_location(update: Update, context: CallbackContext) -> None:
     """entry point to allow the user to specify the location that they wish to send"""
 
     # first the command will be stored in user_data
@@ -51,7 +45,7 @@ async def request_for_location(update: Update, context: ContextTypes.DEFAULT_TYP
     return LOCATION_PARAMETER # receive weather forecast location data
 
 
-async def receive_location_parameter(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def receive_location_parameter(update: Update, context: CallbackContext) -> None:
     """receive the location parameter, ensuring that it's formatted correctly (capitalised)"""
     location_arguments = update.message.text
     location = ""
@@ -79,7 +73,7 @@ async def receive_location_parameter(update: Update, context: ContextTypes.DEFAU
     return ConversationHandler.END
     
 
-async def retrieve_city_registries(update: Update, context: ContextTypes.DEFAULT_TYPE, api_key: str) -> None:
+async def retrieve_city_registries(update: Update, context: CallbackContext, api_key: str) -> None:
     """retrieve all the registries with cities that have the same name across the world"""
 
     try:
@@ -118,7 +112,7 @@ async def retrieve_city_registries(update: Update, context: ContextTypes.DEFAULT
         LOGGER.error("Weather: Unable to parse city registry information.")
     
 
-async def parse_city_registry_information(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def parse_city_registry_information(update: Update, context: CallbackContext) -> None:
     """parse all the registry information of cities with the same name across the world"""
 
     # check to ensure that the location key exists
@@ -170,7 +164,7 @@ async def parse_city_registry_information(update: Update, context: ContextTypes.
         LOGGER.info("Weather: More than one location found in registry.")
         all_city_registries = []
 
-        for i in range(len(city_registries)):
+        for i, _ in enumerate(city_registries):
             current_id = city_registries[i][0]
             name = city_registries[i][1]
             country = city_registries[i][2]
@@ -194,9 +188,9 @@ async def parse_city_registry_information(update: Update, context: ContextTypes.
 
         while count < len(all_city_registries):
             if all_city_registries[count][3] == '':
-                keyboard.append([InlineKeyboardButton(f"{city_registries[count][1]}|{city_registries[count][2]}", callback_data=city_registries[count][0])])
+                keyboard.append([InlineKeyboardButton(f"{city_registries[count][1]}|{city_registries[count][2]}", callback_data=f"city_id({city_registries[count][0]})")])
             else:
-                keyboard.append([InlineKeyboardButton(f"{city_registries[count][1]}|{city_registries[count][2]}|{city_registries[count][3]}", callback_data=city_registries[count][0])])
+                keyboard.append([InlineKeyboardButton(f"{city_registries[count][1]}|{city_registries[count][2]}|{city_registries[count][3]}", callback_data=f"city_id({city_registries[count][0]})")])
 
             count += 1   
 
@@ -214,7 +208,7 @@ async def parse_city_registry_information(update: Update, context: ContextTypes.
             LOGGER.error("Weather: Location selection message was unable to be sent to chat.")
 
 
-async def collect_callback_registry_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def collect_callback_registry_data(update: Update, context: CallbackContext) -> None:
     """the callback function that is called if more than one option is presented in order to retrieve the chosen data."""
 
     # retrieve the current city location
@@ -230,10 +224,13 @@ async def collect_callback_registry_data(update: Update, context: ContextTypes.D
 
     query = update.callback_query
     # Callback Queries need to be answered, even if no notification to the user is needed
-    await query.answer()
+    #await query.answer()
+
+    match = re.match(r"city_id\((.+?)\)", query.data)
 
     try:
-        city_id = query.data
+        if match:
+            city_id = int(match.group(1))
         city_registries = context.chat_data[location]
         LOGGER.info("Weather: City id and registries were retrieved.")
     except TypeError: # unable to retrieve the city registries
@@ -245,7 +242,7 @@ async def collect_callback_registry_data(update: Update, context: ContextTypes.D
         return
     
     #retrieve the respective city registry given the id
-    for i in range(len(city_registries)):
+    for i, _ in enumerate(city_registries):
         if int(city_registries[i][0]) == int(city_id): # city registry was found
             name = city_registries[i][1]
             country = city_registries[i][2]
@@ -284,7 +281,7 @@ async def collect_callback_registry_data(update: Update, context: ContextTypes.D
         LOGGER.error("Weather: Unable to receive the forecast command.")
 
 
-async def receive_forecast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def receive_forecast_command(update: Update, context: CallbackContext) -> None:
     """This function is called after the user has chosen the location and is now ready to receive the forecast command."""
 
     try:
@@ -321,7 +318,7 @@ async def receive_forecast_command(update: Update, context: ContextTypes.DEFAULT
             except:
                 LOGGER.error("Weather: Unable to call the function for daily forecast data.")
 
-async def receive_current_forecast_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def receive_current_forecast_data(update: Update, context: CallbackContext) -> None:
     """retrieve the data for the current weather forecast"""
 
     try:
@@ -390,7 +387,7 @@ async def receive_current_forecast_data(update: Update, context: ContextTypes.DE
         LOGGER.error("Weather: Unable to call function in order to output the weather data.")
 
 
-async def output_current_weather_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def output_current_weather_data(update: Update, context: CallbackContext) -> None:
     """the function that will retrieve the final current weather information and output it to the user"""
 
     # attempt to receive the current weather data
@@ -435,7 +432,7 @@ async def output_current_weather_data(update: Update, context: ContextTypes.DEFA
         LOGGER.info("Weather: Current weather data is being sent to chat.")
 
 
-async def receive_daily_forecast_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def receive_daily_forecast_data(update: Update, context: CallbackContext) -> None:
     """retrieve the weather forecast for a location that specifies the conditions over the next few days"""
 
     # we'll start by attempting to receive the location information that was parsed into a payload earlier
@@ -574,7 +571,7 @@ async def receive_daily_forecast_data(update: Update, context: ContextTypes.DEFA
     except:
         LOGGER.error("Weather: Unable to call function to output the forecast data.")
 
-async def output_weather_forecast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def output_weather_forecast(update: Update, context: CallbackContext) -> None:
     """this is the function that will output the weather forecast for the chosen location"""
 
     # first attempt to retrieve the stored forecast data
@@ -616,12 +613,10 @@ async def output_weather_forecast(update: Update, context: ContextTypes.DEFAULT_
         )
         LOGGER.info("Weather: Forecast data is being sent to chat.")
 
-async def retrieve_geocodes(update: Update, context: ContextTypes.DEFAULT_TYPE, location_name, api_key: str) -> None:
+async def retrieve_geocodes(update: Update, context: CallbackContext, location_name, api_key: str) -> None:
     # initialise pyowm manager
-    print("Hello")
     owm = pyowm.OWM(OWM_API_TOKEN)
     manager = owm.weather_manager()
-    print("location: ", location_name)
 
     # obtain ids
     reg = owm.city_id_registry()
@@ -629,10 +624,9 @@ async def retrieve_geocodes(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     # get the city ID given its name
     global city_registries
     city_registries = reg.ids_for(location_name, matching='exact') # will exact check
+ 
 
-    #TODO 
-
-async def cancel_weather(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def cancel_weather(update: Update, context: CallbackContext) -> None:
     """cancels and ends the conversation."""
     LOGGER.info("Weather: Retrieving the username of the user that sent the cancel message.")
     user = update.message.from_user # user id
@@ -651,34 +645,38 @@ async def cancel_weather(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return ConversationHandler.END # return the end of the conversation
 
 
-def main():
-    # Add necessary conversation handlers with multiple states
-    LOGGER.info("Weather: Creating and adding handlers.")
-    weather_forecast_handler = ConversationHandler(
-        entry_points=[
-            CommandHandler("currentForecast", request_for_location),                # Handle entry point for the current forecast
-            CommandHandler("dayForecast2", request_for_location),                   # Handle entry point for a 2 day forecast
-            CommandHandler("dayForecast3", request_for_location),                   # Handle entry point for a 3 day forecast
-            CommandHandler("dayForecast4", request_for_location),                   # Handle entry point for a 4 day forecast
-            CommandHandler("dayForecast5", request_for_location),                   # Handle entry point for a 5 day forecast
-            CommandHandler("hourForecast1", request_for_location),                  # Handle entry point for a 1 3 hour step forecast
-            CommandHandler("hourForecast2", request_for_location),                  # Handle entry point for a 2 3 hour step forecast
-            CommandHandler("hourForecast3", request_for_location),                  # Handle entry point for a 3 3 hour step forecast
-            CommandHandler("hourForecast4", request_for_location),                  # Handle entry point for a 4 3 hour step forecast
-            CommandHandler("hourForecast5", request_for_location),                  # Handle entry point for a 5 3 hour step forecast
-            CommandHandler("hourForecast6", request_for_location),                  # Handle entry point for a 6 3 hour step forecast
-            CommandHandler("hourForecast7", request_for_location),                  # Handle entry point for a 7 3 hour step forecast
-            CommandHandler("hourForecast8", request_for_location)                   # Handle entry point for a 8 3 hour step forecast
-        ],
-        states={
-            LOCATION_PARAMETER: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_location_parameter)]
-        },
-        fallbacks=[CommandHandler("cancel", cancel_weather)]
-    )
-    dispatcher.add_handler(weather_forecast_handler)
-    dispatcher.add_handler(CallbackQueryHandler(collect_callback_registry_data))
-    #dispatcher.run_polling()     # leave as a comment for the actual program to run this in the main function
+__module_name__ = "Weather"
+__help__ = """
+• `/currentForecast` - Get the current weather forecast for a location
 
+• `/dayForecast[n]` - Get the weather forecast for the next n days (range of n is 1 to 5), e.g /dayForecast3
 
-if __name__ == '__main__':
-    main()
+• `/hourForecast[n]` - Get the weather forecast for the next n 3 HOUR PERIODS (range of n is 1 to 8), e.g /hourForecast4 -> next (4 x 3) = 12 hours from now.
+"""
+
+weather_forecast_handler = ConversationHandler(
+    entry_points=[
+        CommandHandler("currentForecast", request_for_location),                # Handle entry point for the current forecast
+        CommandHandler("dayForecast2", request_for_location),                   # Handle entry point for a 2 day forecast
+        CommandHandler("dayForecast3", request_for_location),                   # Handle entry point for a 3 day forecast
+        CommandHandler("dayForecast4", request_for_location),                   # Handle entry point for a 4 day forecast
+        CommandHandler("dayForecast5", request_for_location),                   # Handle entry point for a 5 day forecast
+        CommandHandler("hourForecast1", request_for_location),                  # Handle entry point for a 1 3 hour step forecast
+        CommandHandler("hourForecast2", request_for_location),                  # Handle entry point for a 2 3 hour step forecast
+        CommandHandler("hourForecast3", request_for_location),                  # Handle entry point for a 3 3 hour step forecast
+        CommandHandler("hourForecast4", request_for_location),                  # Handle entry point for a 4 3 hour step forecast
+        CommandHandler("hourForecast5", request_for_location),                  # Handle entry point for a 5 3 hour step forecast
+        CommandHandler("hourForecast6", request_for_location),                  # Handle entry point for a 6 3 hour step forecast
+        CommandHandler("hourForecast7", request_for_location),                  # Handle entry point for a 7 3 hour step forecast
+        CommandHandler("hourForecast8", request_for_location)                   # Handle entry point for a 8 3 hour step forecast
+    ],
+    states={
+        LOCATION_PARAMETER: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_location_parameter)]
+    },
+    fallbacks=[CommandHandler("cancel", cancel_weather)]
+)
+
+REGISTRY_DATA_HANDLER = CallbackQueryHandler(collect_callback_registry_data, pattern=r"city_id")
+
+dispatcher.add_handler(weather_forecast_handler)
+dispatcher.add_handler(REGISTRY_DATA_HANDLER)

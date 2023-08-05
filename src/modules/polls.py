@@ -11,12 +11,11 @@ from telegram import ( # telegram module imports
     InlineKeyboardButton,
     InlineKeyboardMarkup, 
     Update,
-    helpers
 )
 from telegram.constants import ParseMode
 from telegram.ext import ( # telegram.ext module imports
     CommandHandler, 
-    ContextTypes, 
+    CallbackContext, 
     MessageHandler,
     PollAnswerHandler,
     PollHandler, 
@@ -25,15 +24,6 @@ from telegram.ext import ( # telegram.ext module imports
 )
 
 LOGGER.info("Polls: Started initialisation.")
-_MODULE_ = "Poll/Quiz"
-_HELP = """
-/preview - Create a preview for a poll to be displayed
-/createPoll - Create a poll
-/createQuiz - Create a quiz
-/poll - Send a poll
-/quiz - Send a quiz
-/cancelPoll - Cancel the poll creation
-"""
 
 TOTAL_VOTER_COUNT = 3 # must be left a constant
 answer_dict = {}
@@ -42,7 +32,7 @@ POLL_QUESTION, POLL_ANSWERS = range(2) # for poll creation
 QUIZ_QUESTION, QUIZ_ANSWERS, CORRECT_ANSWER = range(3) # for quiz creation
 
 
-async def configure_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # start poll config
+async def configure_poll(update: Update, context: CallbackContext) -> int: # start poll config
     LOGGER.info("Polls: Poll configuration started.")
     
     # Remove all user data in context if present in order to prevent lots of data
@@ -63,7 +53,7 @@ async def configure_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return POLL_QUESTION # receive poll question data
 
 
-async def poll_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # receive poll question
+async def poll_question(update: Update, context: CallbackContext) -> int: # receive poll question
     global poll_question
     poll_question = update.message.text # update message
     LOGGER.info("Polls: Poll question retrieved from update object.")
@@ -83,7 +73,7 @@ async def poll_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     return POLL_ANSWERS # receive poll answer data
 
 
-async def poll_answers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # receive poll answers
+async def poll_answers(update: Update, context: CallbackContext) -> int: # receive poll answers
     global poll_answers
     poll_answers = update.message.text # update message
     LOGGER.info("Polls: Poll responses retrieved from update object.")
@@ -92,7 +82,6 @@ async def poll_answers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     LOGGER.info("Polls: Poll question and responses are being stored in user data.")
     context.user_data[poll_question] = poll_answers # store poll answer in user data with corresponding poll question key
     
-    # TRY FIX THIS: splits the data only by a comma and whitespace, but should allow to do just comma
     for i in context.user_data.keys(): 
         if i == poll_question:
             LOGGER.info("Polls: Storing the poll question and separated values in user data.")
@@ -111,7 +100,7 @@ async def poll_answers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     return ConversationHandler.END # return the end of the conversation
 
 
-async def configure_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # start quiz config
+async def configure_quiz(update: Update, context: CallbackContext) -> int: # start quiz config
     if str(update.effective_chat.id)[0] == '-':
         keyboard = [[InlineKeyboardButton(text="Run /createQuiz in private chat", url = f"https://t.me/{BOT_USERNAME}")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -138,7 +127,7 @@ async def configure_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return QUIZ_QUESTION # receive quiz question data
 
 
-async def quiz_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # receive quiz question
+async def quiz_question(update: Update, context: CallbackContext) -> int: # receive quiz question
     global quiz_question
     quiz_question = update.message.text # update the message
     LOGGER.info("Polls: Quiz question retrieved from update object.")    
@@ -155,7 +144,7 @@ async def quiz_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     return QUIZ_ANSWERS # receive quiz answers data
 
 
-async def quiz_answers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # receive quiz answers
+async def quiz_answers(update: Update, context: CallbackContext) -> int: # receive quiz answers
     global quiz_answers
     quiz_answers = update.message.text
     LOGGER.info("Polls: Quiz answers retrieved from update object.")
@@ -181,7 +170,7 @@ async def quiz_answers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     return CORRECT_ANSWER # receive correct quiz answer data
 
 
-async def correct_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # receive correct quiz answer
+async def correct_quiz_answer(update: Update, context: CallbackContext) -> int: # receive correct quiz answer
     bot = context.bot
     correct_answer = update.message.text # update message
     LOGGER.info("Polls: Correct answer retrieved from update message object.")
@@ -201,7 +190,7 @@ async def correct_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE
     return ConversationHandler.END # return the end of the conversation
 
 
-async def cancel_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int: # cancel command
+async def cancel_poll(update: Update, context: CallbackContext) -> int: # cancel command
     """Cancels and ends the conversation."""
     user = update.message.from_user # user id
     LOGGER.info("Polls: User %s canceled the conversation.", user.first_name)
@@ -218,7 +207,7 @@ async def cancel_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return ConversationHandler.END # return end of the conversation
 
 
-async def poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def poll(update: Update, context: CallbackContext) -> None:
     """Receive the poll information and parse the information into a payload"""    
     for key, value in context.user_data.items():
         if key == poll_question and value == poll_answers.split(delimiter.group(0)):
@@ -251,7 +240,7 @@ async def poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.bot_data.update(payload) # update bot data with payload
 
 
-async def receive_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def receive_poll_answer(update: Update, context: CallbackContext) -> None:
     """Summarize a users poll vote"""
     answer = update.poll_answer # update the poll answer
     LOGGER.info("Polls: The poll answer was retreived from the update object.")
@@ -289,7 +278,7 @@ async def receive_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE
         await context.bot.stop_poll(answered_poll["chat_id"], answered_poll["message_id"])
 
 
-async def receive_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def receive_poll(update: Update, context: CallbackContext) -> None:
     """On receiving polls, reply to it by a closed poll that will copy the received poll"""
     actual_poll = update.effective_message.poll
     LOGGER.info("Polls: The poll message was retrieved from the update object.")
@@ -308,7 +297,7 @@ async def receive_poll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         LOGGER.error("Polls: The closed poll was unable to be sent to chat.")
 
 
-async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None: 
+async def quiz(update: Update, context: CallbackContext) -> None: 
     """Sends a quiz with configured data"""
 
     for key, value in context.user_data.items():
@@ -322,10 +311,10 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             LOGGER.info("Polls: Quiz question has been located for correct answer.")
             correct_answer = value
 
-    for i in range(len(answers)):
-        if correct_answer == answers[i]:
+    for answer, _ in enumerate(answers):
+        if correct_answer == answers[answer]:
             LOGGER.info("Polls: Correct id for quiz answer has been located.")
-            correct_id = i
+            correct_id = answer
 
     message = await update.effective_message.reply_poll(
         question, answers, type=Poll.QUIZ, correct_option_id=correct_id, 
@@ -339,7 +328,7 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.bot_data.update(payload)
 
 
-async def receive_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def receive_quiz_answer(update: Update, context: CallbackContext) -> None:
     """Close the quiz after three participants took it."""
     # the bot can receive closed poll updates that we don't care about
     if update.poll.is_closed:
@@ -360,7 +349,7 @@ async def receive_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE
         except:
             LOGGER.error("Polls: Quiz was unable to be stopped.")
 
-async def preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def preview(update: Update, context: CallbackContext) -> None:
     """Ask user to create a poll and display a preview of it"""
     # using this without a type lets the user to choose whether they want (quiz and a poll)
     button = [[KeyboardButton("Create preview", request_poll=KeyboardButtonPollType())]]
@@ -374,36 +363,43 @@ async def preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except:
         LOGGER.error("Polls: Poll preview wsa unable to be sent to chat.")
 
+__module_name__ = "Polls"
+__help__ = """
+• `/preview` - Create a preview for a poll to be displayed
 
-def main():
-    # Add a conversation handler with multiple states
-    LOGGER.info("Polls: Creating and adding handlers.")
-    poll_creation_handler = ConversationHandler(
-        entry_points=[CommandHandler("createPoll", configure_poll)], 
-        states={
-            POLL_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, poll_question)],
-            POLL_ANSWERS: [MessageHandler(filters.TEXT & ~filters.COMMAND, poll_answers)],
-        }, 
-        fallbacks=[CommandHandler("cancelPoll", cancel_poll)])
-    
-    quiz_creation_handler = ConversationHandler(
-        entry_points=[CommandHandler("createQuiz", configure_quiz)], 
-        states={
-            QUIZ_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, quiz_question)],
-            QUIZ_ANSWERS: [MessageHandler(filters.TEXT & ~filters.COMMAND, quiz_answers)],
-            CORRECT_ANSWER: [MessageHandler(filters.TEXT & ~filters.COMMAND, correct_quiz_answer)]
-        }, 
-        fallbacks=[CommandHandler("cancelPoll", cancel_poll)])
+• `/createpoll` - Create a poll
 
-    dispatcher.add_handler(poll_creation_handler)
-    dispatcher.add_handler(quiz_creation_handler)
-    dispatcher.add_handler(CommandHandler("poll", poll))
-    dispatcher.add_handler(CommandHandler("quiz", quiz))
-    dispatcher.add_handler(CommandHandler("preview", preview))
-    dispatcher.add_handler(MessageHandler(filters.POLL, receive_poll))
-    dispatcher.add_handler(PollAnswerHandler(receive_poll_answer))
-    dispatcher.add_handler(PollHandler(receive_quiz_answer))
-    #dispatcher.run_polling()
+• `/createquiz` - Create a quiz
 
-if __name__ == '__main__':
-    main()
+• `/poll` - Send a poll
+
+• `/quiz` - Send a quiz
+
+• `/cancelpoll` - Cancel the poll creation
+"""
+
+poll_creation_handler = ConversationHandler(
+    entry_points=[CommandHandler("createPoll", configure_poll)], 
+    states={
+        POLL_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, poll_question)],
+        POLL_ANSWERS: [MessageHandler(filters.TEXT & ~filters.COMMAND, poll_answers)],
+    }, 
+    fallbacks=[CommandHandler("cancelpoll", cancel_poll)])
+
+quiz_creation_handler = ConversationHandler(
+    entry_points=[CommandHandler("createquiz", configure_quiz)], 
+    states={
+        QUIZ_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, quiz_question)],
+        QUIZ_ANSWERS: [MessageHandler(filters.TEXT & ~filters.COMMAND, quiz_answers)],
+        CORRECT_ANSWER: [MessageHandler(filters.TEXT & ~filters.COMMAND, correct_quiz_answer)]
+    }, 
+    fallbacks=[CommandHandler("cancelpoll", cancel_poll)])
+
+dispatcher.add_handler(poll_creation_handler)
+dispatcher.add_handler(quiz_creation_handler)
+dispatcher.add_handler(CommandHandler("poll", poll))
+dispatcher.add_handler(CommandHandler("quiz", quiz))
+dispatcher.add_handler(CommandHandler("preview", preview))
+dispatcher.add_handler(MessageHandler(filters.POLL, receive_poll))
+dispatcher.add_handler(PollAnswerHandler(receive_poll_answer))
+dispatcher.add_handler(PollHandler(receive_quiz_answer))

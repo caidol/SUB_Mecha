@@ -71,9 +71,9 @@ class ChatMembers(BASE):
         )
 
 def create_tables():
-    Users.__table__.create(bind=ENGINE)
-    Chats.__table__.create(bind=ENGINE)
-    ChatMembers.__table__.create(bind=ENGINE)
+    Users.__table__.create(bind=ENGINE, checkfirst=True)
+    Chats.__table__.create(bind=ENGINE, checkfirst=True)
+    ChatMembers.__table__.create(bind=ENGINE, checkfirst=True)
 
 # These functions below require a re-entry lock (RLock) because they are directly editing
 # information in the database tables
@@ -171,3 +171,21 @@ def get_num_users():
         return SESSION.query(Users).count()
     finally:
         SESSION.close()
+
+def migrate_chat(old_chat_id, new_chat_id):
+    with INSERTION_LOCK:
+        chat = SESSION.query(Chats).get(str(old_chat_id))
+        if chat:
+            chat.chat_id = str(new_chat_id)
+        SESSION.commit()
+
+        chat_members = (
+            SESSION.query(ChatMembers)
+            .filter(ChatMembers.chat == str(old_chat_id))
+            .all()
+        )
+        for member in chat_members:
+            member.chat = str(new_chat_id)
+        SESSION.commit()
+
+create_tables()
