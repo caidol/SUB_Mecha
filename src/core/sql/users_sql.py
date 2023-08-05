@@ -171,3 +171,21 @@ def get_num_users():
         return SESSION.query(Users).count()
     finally:
         SESSION.close()
+
+def migrate_chat(old_chat_id, new_chat_id):
+    with INSERTION_LOCK:
+        chat = SESSION.query(Chats).get(str(old_chat_id))
+        if chat:
+            chat.chat_id = str(new_chat_id)
+        SESSION.commit()
+
+        chat_members = (
+            SESSION.query(ChatMembers)
+            .filter(ChatMembers.chat == str(old_chat_id))
+            .all()
+        )
+        for member in chat_members:
+            member.chat = str(new_chat_id)
+        SESSION.commit()
+
+create_tables()

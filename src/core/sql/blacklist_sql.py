@@ -1,28 +1,6 @@
 import threading 
 from sqlalchemy import func, distinct, Column, String, UnicodeText, Integer 
-#from src.core.sql import SESSION, BASE, engine as ENGINE (keep commented for temporary purposes)
-
-# Everything below this comment is a temp solution
-
-from src import LOGGER#, DATABASE_URL
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import scoped_session, sessionmaker
-
-DATABASE_URL = "sqlite:///blacklist.db"
-LOGGER.info("Database URL: {}".format(DATABASE_URL))
-
-def initialise_engine() -> scoped_session:
-    global ENGINE
-    ENGINE = create_engine(DATABASE_URL, echo=True)
-    BASE.metadata.bind = ENGINE
-    BASE.metadata.create_all(ENGINE)
-    return scoped_session(sessionmaker(bind=ENGINE, autoflush=False))
-
-BASE = declarative_base()
-SESSION = initialise_engine()
-
-# Everything above this comment is a temp solution
+from src.core.sql import SESSION, BASE, engine as ENGINE 
 
 # Below are the ranked blacklist responses depending on severity
 # 0 -> nothing
@@ -71,14 +49,11 @@ class BlacklistSettings(BASE):
         )
 
 def create_tables():
-    BlacklistFilters.__table__.create(bind=ENGINE)
-    BlacklistSettings.__table__.create(bind=ENGINE)
+    BlacklistFilters.__table__.create(bind=ENGINE, checkfirst=True)
+    BlacklistSettings.__table__.create(bind=ENGINE, checkfirst=True)
 
 BLACKLIST_FILTER_INSERTION_LOCK = threading.RLock()
 BLACKLIST_FILTER_SETTINGS_INSERTION_LOCK = threading.RLock()
-
-#CHAT_BLACKLISTS = {}
-#CHAT_SETTINGS_BLACKLISTS = {}
 
 def add_to_blacklist(chat_id, trigger):
     with BLACKLIST_FILTER_INSERTION_LOCK:
@@ -169,4 +144,4 @@ def migrate_chat(old_chat_id, new_chat_id):
             filter.chat_id == str(new_chat_id)
         SESSION.commit()
 
-#create_tables()
+create_tables()
