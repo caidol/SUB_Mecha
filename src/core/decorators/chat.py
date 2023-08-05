@@ -1,21 +1,16 @@
 from functools import wraps
+from typing import Optional
 
-from telegram import Message, Update, Chat, ChatMember
+from src import LOGGER
+from src.core.sql import blacklistusers_sql as blacklistusers_sql
+
+from telegram import Update, Chat, User, Message, ChatMember
 from telegram.constants import ParseMode
-from telegram.error import Forbidden
 from telegram.ext import CallbackContext
-
-from src import LOGGER, dispatcher
-from src.utils.misc import get_admin_permissions
 
 
 async def bot_admin_check(chat: Chat, bot_id: int, bot_member: ChatMember = None) -> bool:
-    chat_member_count = await chat.get_member_count()
-    chat_admins = await chat.get_administrators()
-
-    all_admins = True if len(chat_admins) == chat_member_count else False
-    
-    if chat.type == "private" or all_admins:
+    if chat.type == "private":
         return True
     
     if not bot_member:
@@ -28,7 +23,7 @@ def bot_is_admin(func):
     @wraps(func)
     async def is_admin(update: Update, context: CallbackContext, *args, **kwargs):
         bot = context.bot
-        chat = update.effective_chat
+        chat: Optional[Chat] = update.effective_chat
         update_chat_title = chat.title
         message_chat_title = update.effective_message
 
@@ -37,7 +32,8 @@ def bot_is_admin(func):
         else:
             not_admin = "I'm not an admin in <b>{update_chat_title}</b>\nMake sure I'm admin in <b>{update_chat_title}</b> and can appoint new admins."
 
-        if await bot_admin_check(chat, bot.id):
+        is_bot_admin = await bot_admin_check(chat, bot.id)
+        if is_bot_admin:
             return await func(update, context, *args, **kwargs)
         else:
             await update.effective_message.reply_text(not_admin, parse_mode=ParseMode.HTML)
@@ -46,27 +42,43 @@ def bot_is_admin(func):
 
 
 async def user_admin_check(chat: Chat, user_id: int, member: ChatMember = None) -> bool:
-    chat_member_count = await chat.get_member_count()
-    chat_admins = await chat.get_administrators()
-
-    all_admins = True if len(chat_admins) == chat_member_count else False
-
-    if chat.type == "private" or all_admins:
+    if chat.type == "private":
+        LOGGER.info("Chat type is private")
         return True
     
     if not member:
+        LOGGER.info("User is not a chat member")
         member = await chat.get_member(user_id)
-    else:
-        #return await member.status in ("administrator", "creator")
-        return await member.status in ("administrator", "creator")
+    
+    LOGGER.info("member status in admin or creator:")
+    return member.status in ("administrator", "creator")
+
+def is_not_blacklisted(func):
+    @wraps(func)
+    async def check_user_blacklists(update: Update, context: CallbackContext, *args, **kwargs):
+        chat: Optional[Chat] = update.effective_chat
+        user: Optional[User] = update.effective_user
+
+        if chat.type == "PRIVATE":
+            return
+        if not user:
+            return 
+        
+        if not blacklistusers_sql.is_user_blacklisted(chat.id, user.id):
+            return await func(update, context, *args, **kwargs) 
+        else:
+            return
+    
+    return check_user_blacklists
 
 def user_is_admin(func):
     @wraps(func)
     async def is_admin(update: Update, context: CallbackContext, *args, **kwargs):
-        chat = update.effective_chat
-        user = update.effective_user
+        chat: Optional[Chat] = update.effective_chat
+        user: Optional[User] = update.effective_user
 
-        if user and user_admin_check(chat, user.id):
+        is_admin = await user_admin_check(chat, user.id)
+        if user and is_admin:
             return await func(update, context, *args, **kwargs)
         elif not user:
             pass
@@ -80,10 +92,11 @@ def user_is_admin(func):
 def user_is_admin_no_reply(func):
     @wraps(func)
     async def is_admin(update: Update, context: CallbackContext, *args, **kwargs):
-        chat = update.effective_chat
-        user = update.effective_user
-
-        if user and user_admin_check(chat, user.id):
+        chat: Optional[Chat] = update.effective_chat
+        user: Optional[User] = update.effective_user
+        
+        is_admin = await user_admin_check(chat, user.id)
+        if user and is_admin:
             return await func(update, context, *args, **kwargs)
         elif not user:
             pass
@@ -94,19 +107,29 @@ def user_is_not_admin(func):
     @wraps(func)
     async def is_not_admin(update: Update, context: CallbackContext, *args, **kwargs):
         bot = context.bot
-        user = update.effective_user 
-        chat = update.effective_chat
+        user: Optional[User] = update.effective_user 
+        chat: Optional[Chat] = update.effective_chat
 
-        if user and not user_admin_check(chat, user.id):
+        is_admin = await user_admin_check(chat, user.id)
+        if user and not is_admin:
             return await func(update, context, *args, **kwargs)
         
     return is_not_admin
+
+async def user_is_ban_protected(chat: Chat, user_id: int, member: ChatMember = None) -> bool:
+    if chat.type == "private":
+        return True 
+    
+    if not member:
+        member = await chat.get_member(user_id)
+    
+    return member.status in ("administrator", "creator")
 
 def can_promote(func):
     @wraps(func)
     async def promote_rights(update: Update, context: CallbackContext, *args, **kwargs):
         bot = context.bot
-        chat = update.effective_chat
+        chat: Optional[Chat] = update.effective_chat
         update_chat_title = chat.title
         message_chat_title = update.effective_message
 
@@ -115,7 +138,7 @@ def can_promote(func):
         else:
             cant_promote = (
                 f"I can't promote people in <b>{update_chat_title}</b>!\n"
-                f"Make sure I'm admin and can appoint new admins."
+                f"Make sure I'm admin and have the correct privileges."
             )
         member = await chat.get_member(bot.id)
         if member.can_promote_members:
@@ -129,15 +152,15 @@ def can_pin(func):
     @wraps(func)
     async def pin_rights(update: Update, context: CallbackContext, *args, **kwargs):
         bot = context.bot
-        chat = update.effective_chat
-        message = update.effective_message
+        chat: Optional[Chat] = update.effective_chat
+        message: Optional[Message] = update.effective_message
         update_chat_title = chat.title
         message_chat_title = message.chat.title
 
         if update_chat_title == message_chat_title:
             cant_pin = "I can't pin/unpin messages here!\nMake sure that I'm admin and have the correct privileges."
         else:
-            cant_pin = f"I can't pin/unpin messages in <b>{update_chat_title}</b>!\nMake sure I'm admin and can pin/unpin messages there."
+            cant_pin = f"I can't pin/unpin messages in <b>{update_chat_title}</b>!\nMake sure I'm admin and have the correct privileges."
 
         bot_member = await chat.get_member(bot.id)
 
@@ -151,12 +174,38 @@ def can_pin(func):
     
     return pin_rights
 
+def can_change_info(func):
+    @wraps(func)
+    async def info_rights(update: Update, context: CallbackContext, *args, **kwargs):
+        bot = context.bot
+        chat: Optional[Chat] = update.effective_chat
+        message: Optional[Message] = update.effective_message
+        update_chat_title = chat.title
+        message_chat_title = message.chat.title
+
+        if update_chat_title == message_chat_title:
+            cant_change_info = "I can't change the info here!\nMake sure I'm admin and have the correct privileges."
+        else:
+            cant_change_info = f"I can't change the info in <b>{update_chat_title}</b>!\nMake sure I'm admin and have the correct privileges"
+
+        bot_member = await chat.get_member(bot.id)
+
+        if bot_member.can_change_info:
+            return await func(update, context, *args, **kwargs)
+        else:
+            await update.effective_message.reply_text(
+                cant_change_info,
+                parse_mode=ParseMode.HTML,
+            )
+        
+    return info_rights
+
 def can_invite(func):
     @wraps(func)
     async def invite_rights(update: Update, context: CallbackContext, *args, **kwargs):
         bot = context.bot
-        chat = update.effective_chat
-        message = update.effective_message
+        chat: Optional[Chat] = update.effective_chat
+        message: Optional[Message] = update.effective_message
         update_chat_title = chat.title
         message_chat_title = message.chat.title
 
@@ -181,8 +230,8 @@ def can_restrict_members(func):
     @wraps(func)
     async def restriction_rights(update: Update, context: CallbackContext, *args, **kwargs):
         bot = context.bot
-        chat = update.effective_chat
-        message = update.effective_message
+        chat: Optional[Chat] = update.effective_chat
+        message: Optional[Message] = update.effective_message
         update_chat_title = chat.title
         message_chat_title = message.chat.title
 
@@ -207,8 +256,8 @@ def can_delete_messages(func):
     @wraps(func)
     async def deletion_rights(update: Update, context: CallbackContext, *args, **kwargs):
         bot = context.bot
-        chat = update.effective_chat
-        message = update.effective_message
+        chat: Optional[Chat] = update.effective_chat
+        message: Optional[Message] = update.effective_message
         update_chat_title = chat.title
         message_chat_title = message.chat.title 
 
