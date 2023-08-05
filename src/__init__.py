@@ -4,7 +4,6 @@ import logging
 import time
 import os
 import re
-import spamwatch
 from telegram.ext import Application 
 
 from aiohttp import ClientSession
@@ -17,7 +16,6 @@ else:
     PROGRAM_PATH = PROGRAM_PATH.group(1) # Regex pattern ensures that the path is only up to the src folder no matter the location
 
 PROGRAM_PATH = f"{PROGRAM_PATH}/"
-print("program path: ", PROGRAM_PATH)
 
 # Enable logging
 logging.basicConfig(
@@ -26,7 +24,7 @@ logging.basicConfig(
 
 LOGGER = logging.getLogger(__name__)
 
-CONFIG_FILENAME = "config"
+CONFIG_FILENAME = "sample_config" #TODO change to config when finished with project
 
 # Check python version
 if sys.version_info[0] < 3 or sys.version_info[1] < 6:
@@ -55,7 +53,6 @@ def read_yaml_data(filename):
             #with open('/home/ai-dan/Documents/Projects/SUB_Mecha/config.yml', 'r') as file:
             with open(f'/{PROGRAM_PATH}/{filename}.yml', 'r') as file:
                 output = yaml.safe_load(file)
-            #print(output)
 
             return output
         except yaml.YAMLError as Exception:
@@ -71,7 +68,6 @@ data = read_yaml_data(CONFIG_FILENAME)
 # Below we define our constants that can be imported throughout the engine.
 
 PROGRAM_NAME = data['name']
-BOT_USERNAME = data['username']
 DESCRIPTION = data['description']
 LOGO = data['logo'] # must get a logo as there's currently no default logo
 REPOSITORY = data['repository']
@@ -84,10 +80,11 @@ if ENV:
         BOT_TOKEN = ENV['BOT_TOKEN']['value']
         OWNER_ID = int(ENV['OWNER_ID']['value'])
         OWNER_USERNAME = ENV['OWNER_USERNAME']['value']
+        BOT_NAME = ENV['BOT_NAME']['value']
         BOT_USERNAME = ENV['BOT_USERNAME']['value']
         HEROKU_URL = ENV['HEROKU_URL']['value']
         OWM_API_TOKEN = ENV['OWM_API_TOKEN']['value']
-        DATABASE_URL = ENV['DATABASE_URL']['value']
+        DATABASE_URL = f"sqlite:///{PROGRAM_PATH}/src/core/sql/database/database.db" # "sqlite:///database.db"
     except ValueError:
         for item in ENV:
             if ENV[item]['value'] == "" and ENV[item]['required'] == True:
@@ -109,18 +106,4 @@ LOAD = []
 NO_LOAD = []
 BOT_START_TIME = time.time()
 
-aiohttpsession = ClientSession()
-
-# for debug purposes
-'''
-print(ENV)
-print(PROGRAM_NAME)
-print(DESCRIPTION)
-print(LOGO)
-print(REPOSITORY)
-print(BOT_TOKEN)
-print(OWNER_ID)
-print(OWNER_USERNAME)
-print(HEROKU_URL)
-print(dispatcher)
-'''
+aiohttpsession = ClientSession() # Comment for now to address a small issue with this client session not being closed properly
