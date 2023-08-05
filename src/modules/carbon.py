@@ -1,11 +1,13 @@
-from telegram import Update
+from typing import Optional
+
+from telegram import Update, Message
 from telegram.ext import CommandHandler, CallbackContext
 
 from src import dispatcher
 from src.utils.misc import make_carbon
 
 async def carbon_func(update: Update, context: CallbackContext):
-    message = update.effective_message
+    message: Optional[Message] = update.effective_message
     if not message.reply_to_message:
         return await message.reply_text(
             "Reply to a text to make it carbon."
@@ -21,16 +23,11 @@ async def carbon_func(update: Update, context: CallbackContext):
     await m.delete()
     carbon.close()
 
-__module__ = "Carbon"
-
+__module_name__ = "Carbon"
 __help__ = """
-/carbon <text> [or reply]
-
-Usage: Beautify your code using carbon.now.sh
+• `/carbon <text> (or reply)` - Beautify your code using carbon.now.sh
 """
 
-if __name__ == '__main__':
-    CARBON_HANDLER = CommandHandler("carbon", carbon_func)
+CARBON_HANDLER = CommandHandler("carbon", carbon_func)
 
-    dispatcher.add_handler(CARBON_HANDLER)
-    dispatcher.run_polling()
+dispatcher.add_handler(CARBON_HANDLER)
