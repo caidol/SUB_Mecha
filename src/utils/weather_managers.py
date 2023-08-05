@@ -73,14 +73,13 @@ class LocationManager(OWM_API_Manager):
         geocode_data = self.request_geocodes(city_name, country_code, state_code)
 
         if geocode_data != None: # successful API response
-            #print(geocode_data)
 
             geocode_data = geocode_data[0] # get the first result from the list -> as we have provided the exact location name, there should only be one result
             
             return [geocode_data['lat'], geocode_data['lon']] # return the latitude and longitude of the location
         
         else: # Should run but it doesn't. Fix later
-            print("does not exist")
+            return False
         
 
     def get_population(self) -> int:
@@ -91,8 +90,6 @@ class LocationManager(OWM_API_Manager):
         if location_data is None:
             return location_data
         
-        print(location_data)
-
         return location_data["population"]
 
 
@@ -124,8 +121,6 @@ class WeatherManager(OWM_API_Manager):
         """
 
         complete_url = f"{self.base_url}{self.weather_query_string}lat={self.lat}&lon={self.lon}&appid={self.api_key}&units={self.units}"
-        print("COMPLETE URL: " + complete_url)
-
         # check to see whether the request was successful
         weather_data = self.request_api(complete_url) # request the API -> method from parent class
 
