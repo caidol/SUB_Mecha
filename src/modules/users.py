@@ -1,21 +1,22 @@
-from telegram import Update
+from typing import Optional
+from io import BytesIO
+
+from telegram import Update, Chat, Message
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import (
     CallbackContext,
     CommandHandler,
     MessageHandler,
     filters,
-    ContextTypes,
+    CallbackContext,
 )
-import src.core.sql.users_sql as sql
-from src import LOGGER, OWNER_ID, dispatcher
+import src.core.sql.users_sql as users_sql
+from src import LOGGER, DEV_ID, dispatcher
+
+USERS_GROUP = 4
+CHAT_GROUP = 5
 
 LOGGER.info("Users: Started initialisation.")
-
-__MODULE__ = "Users"
-__HELP__= """
-[/broadcastall, /broadcastgroups, /broadcastusers] - Broadcasts a message (dev only)
-"""
 
 def get_user_id(username, chat_id):
     LOGGER.info("Users: Retrieving the user id given username.")
@@ -26,8 +27,8 @@ def get_user_id(username, chat_id):
     if len(username) <= 5:
         return None
 
-    LOGGER.info("Users: Querying sql for userid given username")
-    users = sql.get_userid_by_name(username)
+    LOGGER.info("Users: Querying users_sql for userid given username")
+    users = users_sql.get_userid_by_name(username)
     
 
     if not users: # No users are present
@@ -51,7 +52,10 @@ def get_user_id(username, chat_id):
 
 async def broadcast(update: Update, context: CallbackContext):
     LOGGER.info("Users: Broadcasting message.")
-    message = update.effective_message
+    message: Optional[Message] = update.effective_message
+    if message.from_user.id != DEV_ID:
+        return await message.reply_text("You must be the developer user to be able to send this!")
+    
     to_send = message.text.split(None, 1)
 
     if len(to_send) >= 2:
@@ -65,8 +69,8 @@ async def broadcast(update: Update, context: CallbackContext):
         if to_send[0] == "/broadcastall":
             group_broadcast = user_broadcast = True
 
-        all_chats = sql.get_all_chats() or []
-        all_users = sql.get_all_users() or []
+        all_chats = users_sql.get_all_chats() or []
+        all_users = users_sql.get_all_users() or []
         failed_groups = 0
         failed_users = 0
 
@@ -97,16 +101,40 @@ async def broadcast(update: Update, context: CallbackContext):
                     failed_users += 1
         
         update.effective_message.reply_text(
-            f"Broadcast message complete. \nGroups failed {failed_groups} \nFailed users {failed_users}"
+            f"📡 Broadcast message complete. \nGroups failed `{failed_groups}` \nFailed users `{failed_users}` 📡 "
         )
 
+async def chats(update: Update, context: CallbackContext):
+    all_chats = users_sql.get_all_chats() or []
+    chatfile = "List of chats.\n0. Chat name | Chat ID | Members count\n"
+    P = 1
+    for chat in all_chats:
+        try:
+            curr_chat = context.bot.getChat(chat.chat_id)
+            bot_member = curr_chat.get_member(context.bot.id)
+            chat_members = curr_chat.get_members_count(context.bot.id)
+            chatfile += "{}. {} | {} | {}\n".format(
+                P, chat.chat_name, chat.chat_id, chat_members,
+            )
+            P = P + 1
+        except:
+            pass
+
+    with BytesIO(str.encode(chatfile)) as output:
+        output.name = "groups_list.txt"
+        update.effective_message.reply_document(
+            document=output,
+            filename="groups_list.txt",
+            caption="Here be the list of groups in my database.",
+        ) 
+
 async def log_user(update: Update, context: CallbackContext):
-    chat = update.effective_chat
-    message = update.effective_message
+    chat: Optional[Chat] = update.effective_chat
+    message: Optional[Message] = update.effective_message
 
     if message.reply_to_message:
         LOGGER.info("Users: User is being logged from a replied message.")
-        sql.update_user(
+        users_sql.update_user(
             message.reply_to_message.from_user.id,
             message.reply_to_message.from_user.username,
             chat.id,
@@ -116,25 +144,44 @@ async def log_user(update: Update, context: CallbackContext):
     
     if message.forward_from:
         LOGGER.info("Users: User is being logged from a forwarded message.")
-        sql.update_user(
+        users_sql.update_user(
             message.forward_from.id,
             message.forward_from.username,  
         )
         return
 
     LOGGER.info("Users: User is being logged from a standard message.")
-    sql.update_user(message.from_user.id, message.from_user.username, chat.id, chat.title)
+    users_sql.update_user(message.from_user.id, message.from_user.username, chat.id, chat.title)
 
+async def chat_checker(update: Update, context: CallbackContext):
+    chat: Optional[Chat] = update.effective_chat
+    bot = context.bot 
+    try:
+        bot_member = await dispatcher.bot.get_chat(chat.id)
+        if bot_member.permissions.can_send_messages is False: # These are only the default chat permissions
+            await bot.leave_chat(chat.id)
+    except BadRequest:
+        pass  
 
-if __name__ == '__main__':
-    LOGGER.info("User: Creating and adding handlers.")
-    #sql.create_tables()
+def __migrate__(old_chat_id, new_chat_id):
+    users_sql.migrate_chat(old_chat_id, new_chat_id)
 
-    USER_LOG_HANDLER = MessageHandler(filters.ALL & filters.CHAT, log_user)
-    BROADCAST_HANDLER = CommandHandler(
-        ["broadcastall", "broadcastgroups", "broadcastusers"], broadcast
-    )
+__module_name__ = "Users"
+__help__= """
+• `/groups` - Get a list of all the chats that the bot is presently in.
 
-    dispatcher.add_handler(USER_LOG_HANDLER)
-    dispatcher.add_handler(BROADCAST_HANDLER)
-    dispatcher.run_polling()
+*Dev user only*
+•`[/broadcastall, /broadcastgroups, /broadcastusers] <message>` - Broadcasts a message 
+"""
+
+USER_LOG_HANDLER = MessageHandler(filters.ALL & filters.CHAT, log_user)
+BROADCAST_HANDLER = CommandHandler(
+    ["broadcastall", "broadcastgroups", "broadcastusers"], broadcast
+)
+CHAT_CHECKER_HANDLER = MessageHandler(filters.ALL & ~filters.ChatType.PRIVATE, chat_checker)
+CHATLIST_HANDLER = CommandHandler("groups", chats)
+
+dispatcher.add_handler(USER_LOG_HANDLER, USERS_GROUP)
+dispatcher.add_handler(BROADCAST_HANDLER)
+dispatcher.add_handler(CHATLIST_HANDLER)
+dispatcher.add_handler(CHAT_CHECKER_HANDLER, CHAT_GROUP)

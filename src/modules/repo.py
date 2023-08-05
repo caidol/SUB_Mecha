@@ -8,8 +8,11 @@ async def repo(update: Update, context: CallbackContext):
         f"Here is the information for the repository. Please like it if possible to support the dev -> caidol:\n\n{link}"
     )
 
-if __name__ == '__main__':
-    REPO_HANDLER = CommandHandler("repo", repo)
+__module_name__ = "Repository"
+__help__ = """
+• `/repo` - Send a link to the source code of the bot.
+"""
 
-    dispatcher.add_handler(REPO_HANDLER)
-    dispatcher.run_polling()
+REPO_HANDLER = CommandHandler("repo", repo)
+
+dispatcher.add_handler(REPO_HANDLER)

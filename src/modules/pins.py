@@ -1,16 +1,18 @@
-from telegram import Update
+from typing import Optional
+
+from telegram import Update, Chat, Message
 from telegram.ext import CallbackContext, CommandHandler, filters
 from telegram.error import BadRequest
 from src import LOGGER, dispatcher
-from src.core.decorators.chat import bot_is_admin, user_is_admin, can_pin, can_promote
+from src.core.decorators.chat import bot_is_admin, user_is_admin, can_pin
 
 @bot_is_admin
 @user_is_admin
 @can_pin
 async def pin(update: Update, context: CallbackContext) -> None:
     args = context.args 
-    chat = update.effective_chat
-    message = update.effective_message
+    chat: Optional[Chat] = update.effective_chat
+    message: Optional[Message] = update.effective_message
 
     is_group = (chat.type != "private" and chat.type != "channel") # groups are neither private chats or channels
     previous_message = message.reply_to_message # the previous message that the pin was replied to
@@ -34,9 +36,9 @@ async def pin(update: Update, context: CallbackContext) -> None:
 
 @bot_is_admin
 @user_is_admin
-@can_promote
+@can_pin
 async def unpin(update: Update, context: CallbackContext) -> None:
-    message = update.effective_message
+    message: Optional[Message] = update.effective_message
     previous_message = message.reply_to_message
 
     try:
@@ -47,10 +49,16 @@ async def unpin(update: Update, context: CallbackContext) -> None:
             LOGGER.error("Admin: A bad request occurred when trying to unpin a replied message.")
             raise excp
     
+__module_name__ = "Pins"
+__help__ = """
+• `/pin (reply)` - Pin a message
 
-if __name__ == '__main__':
-    PIN_HANDLER = CommandHandler("pin", pin, filters=~filters.ChatType.PRIVATE)
-    UNPIN_HANDLER = CommandHandler("unpin", unpin, filters=~filters.ChatType.PRIVATE)
+• `/unpin (reply)` - Unpin a message
+"""
 
-    dispatcher.add_handler(PIN_HANDLER)
-    dispatcher.add_handler(UNPIN_HANDLER)
+PIN_HANDLER = CommandHandler("pin", pin, filters=~filters.ChatType.PRIVATE)
+UNPIN_HANDLER = CommandHandler("unpin", unpin, filters=~filters.ChatType.PRIVATE)
+
+dispatcher.add_handler(PIN_HANDLER)
+dispatcher.add_handler(UNPIN_HANDLER)
+
