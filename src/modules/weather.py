@@ -612,18 +612,6 @@ async def output_weather_forecast(update: Update, context: CallbackContext) -> N
             text = message
         )
         LOGGER.info("Weather: Forecast data is being sent to chat.")
-
-async def retrieve_geocodes(update: Update, context: CallbackContext, location_name, api_key: str) -> None:
-    # initialise pyowm manager
-    owm = pyowm.OWM(OWM_API_TOKEN)
-    manager = owm.weather_manager()
-
-    # obtain ids
-    reg = owm.city_id_registry()
-
-    # get the city ID given its name
-    global city_registries
-    city_registries = reg.ids_for(location_name, matching='exact') # will exact check
  
 
 async def cancel_weather(update: Update, context: CallbackContext) -> None:
@@ -656,19 +644,19 @@ __help__ = """
 
 weather_forecast_handler = ConversationHandler(
     entry_points=[
-        CommandHandler("currentForecast", request_for_location),                # Handle entry point for the current forecast
-        CommandHandler("dayForecast2", request_for_location),                   # Handle entry point for a 2 day forecast
-        CommandHandler("dayForecast3", request_for_location),                   # Handle entry point for a 3 day forecast
-        CommandHandler("dayForecast4", request_for_location),                   # Handle entry point for a 4 day forecast
-        CommandHandler("dayForecast5", request_for_location),                   # Handle entry point for a 5 day forecast
-        CommandHandler("hourForecast1", request_for_location),                  # Handle entry point for a 1 3 hour step forecast
-        CommandHandler("hourForecast2", request_for_location),                  # Handle entry point for a 2 3 hour step forecast
-        CommandHandler("hourForecast3", request_for_location),                  # Handle entry point for a 3 3 hour step forecast
-        CommandHandler("hourForecast4", request_for_location),                  # Handle entry point for a 4 3 hour step forecast
-        CommandHandler("hourForecast5", request_for_location),                  # Handle entry point for a 5 3 hour step forecast
-        CommandHandler("hourForecast6", request_for_location),                  # Handle entry point for a 6 3 hour step forecast
-        CommandHandler("hourForecast7", request_for_location),                  # Handle entry point for a 7 3 hour step forecast
-        CommandHandler("hourForecast8", request_for_location)                   # Handle entry point for a 8 3 hour step forecast
+        CommandHandler("currentforecast", request_for_location),                # Handle entry point for the current forecast
+        CommandHandler("dayforecast2", request_for_location),                   # Handle entry point for a 2 day forecast
+        CommandHandler("dayforecast3", request_for_location),                   # Handle entry point for a 3 day forecast
+        CommandHandler("dayforecast4", request_for_location),                   # Handle entry point for a 4 day forecast
+        CommandHandler("dayforecast5", request_for_location),                   # Handle entry point for a 5 day forecast
+        CommandHandler("hourforecast1", request_for_location),                  # Handle entry point for a 1 3 hour step forecast
+        CommandHandler("hourforecast2", request_for_location),                  # Handle entry point for a 2 3 hour step forecast
+        CommandHandler("hourforecast3", request_for_location),                  # Handle entry point for a 3 3 hour step forecast
+        CommandHandler("hourforecast4", request_for_location),                  # Handle entry point for a 4 3 hour step forecast
+        CommandHandler("hourforecast5", request_for_location),                  # Handle entry point for a 5 3 hour step forecast
+        CommandHandler("hourforecast6", request_for_location),                  # Handle entry point for a 6 3 hour step forecast
+        CommandHandler("hourforecast7", request_for_location),                  # Handle entry point for a 7 3 hour step forecast
+        CommandHandler("hourforecast8", request_for_location)                   # Handle entry point for a 8 3 hour step forecast
     ],
     states={
         LOCATION_PARAMETER: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_location_parameter)]

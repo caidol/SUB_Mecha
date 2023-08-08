@@ -1205,7 +1205,7 @@ __help__ = """
 
 • `/cleangoodbye <on/off>` - On a member leaving, try to delete the previous goodbye message to avoid spamming the chat.
 
-• `/cleanservice <on/off` - Deletes telegrams welcome/left service messages.
+• `/cleanservice <on/off>` - Deletes telegrams welcome/left service messages.
 """
 
 #TODO Look more into how welcome buttons are used

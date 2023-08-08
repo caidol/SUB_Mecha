@@ -237,16 +237,28 @@ async def getflood(update: Update, context: CallbackContext) -> None:
     chat_id = chat.id
     chat_name = message.chat.title 
 
-    limit = antiflood_sql.get_flood_limit(chat_id)
+    severity, limit = antiflood_sql.get_flood_setting(chat_id)
+    severity_type = ""
+
+    if severity == 1:
+        severity_type = "ban"
+    elif severity_type == 2:
+        severity_type = "kick"
+    elif severity_type == 3:
+        severity_type = "mute"
+    elif severity_type == 4:
+        severity_type = "tban"
+    elif severity_type == 5:
+        severity_type = "tmute"
 
     if limit == 0:
         await message.reply_text(
-            f"🚫🌊 I'm not enforcing any flood control in `{chat_name}`. 🚫🌊",
+            f"🚫🌊 I'm not enforcing any flood control in `{chat_name}`. 🚫🌊\n\nHowever the current mode is set to `{severity_type}`.",
             parse_mode=ParseMode.MARKDOWN,
         )
     else:
         await message.reply_text(
-            f"🌊 I'm currently restricting members after `{limit}` consecutive messages in `{chat_name}`. 🌊",
+            f"🌊 I'm currently restricting members after `{limit}` consecutive messages in `{chat_name}`. 🌊\n\nIf they violate this limit then they will receive a `{severity_type}.`",
             parse_mode=ParseMode.MARKDOWN,
         )
 
@@ -344,17 +356,13 @@ def __migrate__(old_chat_id, new_chat_id):
 
 __module_name__ = "Antiflood"
 __help__ = """
-Antiflood is a system that monitors the number of messages that are sent in a row
-by a particular user. Exceeding the set flood limit will allow the user to be
-restricted in a particular way - which can be configured.
-
-With my system, I set the standard limit to around 6 messages spammed in a row
+Antiflood is a system that monitors the number of messages that are sent in a row by a particular user. Exceeding the set flood limit will allow the user to be restricted in a particular way - which can be configured.
 
 Below are the commands:
 • `/getflood` - Get the current settings for the flood control
 
 *Admins Only:*
-• `/setflood <on/off>` - Toggle to enable or disable flood control
+• `/setflood <off/0/limit>` - Toggle to enable or disable flood control
 
 *Note: The time_value must be given when using tban or tmute.*
 

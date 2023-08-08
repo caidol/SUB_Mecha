@@ -466,6 +466,7 @@ def __stats__():
 __module_name__ = "Blacklists"
 __help__ = """
 Blacklists are used to stop certain keywords from being said in a group. 
+
 These blacklists do not apply to group admins:
 
 • `/getblacklist` - view the current blacklisted words
@@ -476,7 +477,7 @@ These blacklists do not apply to group admins:
 
 • `/unblacklist <trigger(s)>` - Remove a trigger(s) from the blacklist. Different triggers must be separated by commas.
 
-• `/blacklistmode <off/del/warn/ban/kick/mute/tban/tmute> <time_value|if tban/tmute` - Action to perform when someone sends blacklisted words.
+• `/blacklistmode <off/del/warn/ban/kick/mute/tban/tmute> <time_value|if tban/tmute>` - Action to perform when someone sends blacklisted words.
 """
 
 GET_BLACKLIST_HANDLER = CommandHandler("getblacklist", get_blacklist)

@@ -64,9 +64,9 @@ async def broadcast(update: Update, context: CallbackContext):
 
         if to_send[0] == "/broadcastgroups":
             group_broadcast = True
-        if to_send[0] == "/broadcastusers":
+        elif to_send[0] == "/broadcastusers":
             user_broadcast = True
-        if to_send[0] == "/broadcastall":
+        elif to_send[0] == "/broadcastall":
             group_broadcast = user_broadcast = True
 
         all_chats = users_sql.get_all_chats() or []
@@ -110,9 +110,9 @@ async def chats(update: Update, context: CallbackContext):
     P = 1
     for chat in all_chats:
         try:
-            curr_chat = context.bot.getChat(chat.chat_id)
-            bot_member = curr_chat.get_member(context.bot.id)
-            chat_members = curr_chat.get_members_count(context.bot.id)
+            curr_chat = await context.bot.getChat(chat.chat_id)
+            bot_member = await curr_chat.get_member(context.bot.id)
+            chat_members = await curr_chat.get_members_count(context.bot.id)
             chatfile += "{}. {} | {} | {}\n".format(
                 P, chat.chat_name, chat.chat_id, chat_members,
             )
@@ -122,7 +122,7 @@ async def chats(update: Update, context: CallbackContext):
 
     with BytesIO(str.encode(chatfile)) as output:
         output.name = "groups_list.txt"
-        update.effective_message.reply_document(
+        await update.effective_message.reply_document(
             document=output,
             filename="groups_list.txt",
             caption="Here be the list of groups in my database.",
@@ -185,3 +185,4 @@ dispatcher.add_handler(USER_LOG_HANDLER, USERS_GROUP)
 dispatcher.add_handler(BROADCAST_HANDLER)
 dispatcher.add_handler(CHATLIST_HANDLER)
 dispatcher.add_handler(CHAT_CHECKER_HANDLER, CHAT_GROUP)
+dispatcher.run_polling()
