@@ -113,32 +113,6 @@ __help__ = """
 • `/setadmintitle (reply)` - Change the administrator title of an admin (not working)
 """
 
-__module_info__ = """
-The Admin Misc module contains miscellaneous admin features. This essentially involves being
-able to change group information (Chat Title, Chat Description, Chat Photo, User Title).
-
-It's important that the user is an admin when running these commands. The bot must also be 
-an admin and specifically one that has the capability of changing information within the chat.
-
-[setchattitle, setchatdescription]
-
-For the chat title and chat description, you will need to write the message that you wish to 
-write after specifying the command.
-
-[setchatphoto]
-
-The chat photo must be a photo that is replied to inside the chat. This photo will then be 
-temporarily downloaded to the server so the the file can be read and the bytes data then
-sent to the bot.
-
-[setusertitle]
-
-The admin title must also be replied to a message. The bot will check whether the user is an
-admin or not but it's important to know that the user must be an admin user for their title to 
-be changed.
-"""
-
-
 CHAT_TITLE_HANDLER = CommandHandler("setchattitle", set_chat_title, filters=~filters.ChatType.PRIVATE)
 CHAT_PHOTO_HANDLER = CommandHandler("setchatphoto", set_chat_photo, filters=~filters.ChatType.PRIVATE)
 CHAT_DESCRIPTION_HANDLER = CommandHandler("setchatdescription", set_chat_description, filters=~filters.ChatType.PRIVATE)

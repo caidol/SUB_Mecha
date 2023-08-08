@@ -312,7 +312,7 @@ async def quiz(update: Update, context: CallbackContext) -> None:
             correct_answer = value
 
     for answer, _ in enumerate(answers):
-        if correct_answer == answers[answer]:
+        if correct_answer.lower() == answers[answer].lower():
             LOGGER.info("Polls: Correct id for quiz answer has been located.")
             correct_id = answer
 
@@ -361,7 +361,9 @@ async def preview(update: Update, context: CallbackContext) -> None:
         )
         LOGGER.info("Polls: Poll preview was sent to chat.")
     except:
-        LOGGER.error("Polls: Poll preview wsa unable to be sent to chat.")
+        await update.effective_message.reply_text(
+            "Unable to send poll preview to chat. Make sure that you are in a private chat for preview."
+        )
 
 __module_name__ = "Polls"
 __help__ = """
