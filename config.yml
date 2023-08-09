@@ -41,7 +41,7 @@ env:
 
   HEROKU_URL:
     description: "The Heroku App URL --> Format is https://<appname>.herokuapp.com/"
-    value: "https://git.heroku.com/sub-mecha.git"
+    value: ""
     required: false
 
   OWM_API_TOKEN:

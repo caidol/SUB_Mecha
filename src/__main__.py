@@ -1,4 +1,5 @@
 import importlib # for dynamically importing modules
+import asyncio
 import re
 from typing import Optional
 
@@ -11,7 +12,7 @@ from src import (
 )
 from src.modules import ALL_MODULES
 from src.utils.performance import sys_status
-from src.core.commands_menu.help_menu import paginate_modules
+from src.core.commands_menu.help_menu import paginate_modules, paginate_info
 
 from telegram import Update, Message, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler, MessageHandler, filters
@@ -167,6 +168,63 @@ list of commands.
         keyboard,
     )
 
+async def info_parser(name, keyboard=None):
+    if not keyboard:
+        keyboard = InlineKeyboardMarkup(paginate_info(0, HELPABLE_MODULES, "info"))
+    return (
+        """
+Hello {first_name}, this is the module info list for all the features 
+provided by {BOT_USERNAME}. Click on a button for a module of your choice to be redircted
+to the wiki where you can receive more detailed information about that module.
+""".format(
+            first_name=name,
+            BOT_USERNAME=BOT_USERNAME,
+        ),
+        keyboard,
+    )
+
+async def modules_info_button(update: Update, context: CallbackContext):
+    query = update.callback_query
+
+    home_button_match = re.match(r"info_home\((.+?)\)", query.data)
+    #module_button_match = re.match(r"info_module\((.+?)\)", query.data)
+    prev_button_match = re.match(r"info_prev\((.+?)\)", query.data)
+    next_button_match = re.match(r"info_next\((.+?)\)", query.data)
+    #back_button_match = re.match(r"info_back", query.data)
+    
+    welcome_text = f"""
+Hello {query.from_user.first_name}, this is the module info list for all the features 
+provided by {BOT_USERNAME}. Click on a button for a module of your choice to be redircted
+to the wiki where you can receive more detailed information about that module.
+    """
+
+    if home_button_match:
+        await query.message.edit_text(
+            text=PM_START_TEXT,
+            reply_markup=HUB_KEYBOARD,
+            disable_web_page_preview=True
+        )
+    elif prev_button_match:
+        current_page = int(prev_button_match.group(1))
+        await query.message.edit_text(
+            text=welcome_text,
+            reply_markup=InlineKeyboardMarkup(
+                paginate_info(current_page - 1, HELPABLE_MODULES, "info")
+            ),
+            disable_web_page_preview=True,
+        )
+    elif next_button_match:
+        current_page = int(next_button_match.group(1))
+        await query.message.edit_text(
+            text=welcome_text,
+            reply_markup=InlineKeyboardMarkup(
+                paginate_info(current_page + 1, HELPABLE_MODULES, "info")
+            ),
+            disable_web_page_preview=True,
+        )
+
+    return await query.answer()
+
 async def commands_callback(update: Update, context: CallbackContext):
     query = update.callback_query
     text, keyboard = await help_parser(query.from_user.first_name)
@@ -178,6 +236,16 @@ async def commands_callback(update: Update, context: CallbackContext):
     )
 
     await query.message.delete()
+
+async def info_callback(update: Update, context: CallbackContext):
+    query = update.callback_query
+    text, keyboard = await info_parser(query.from_user.first_name)
+
+    await dispatcher.bot.send_message(
+        query.message.chat_id,
+        text=text,
+        reply_markup=keyboard,
+    )
 
 async def show_module_commands(update: Update, context: CallbackContext):
     message: Optional[Message] = update.effective_message
@@ -319,6 +387,8 @@ def main():
     help_handler = CommandHandler("help", show_module_commands)
     
     commands_buttons_handler = CallbackQueryHandler(commands_help_buttons, pattern=r"help_.*")
+    info_buttons_handler = CallbackQueryHandler(modules_info_button, pattern=r"info_.*")
+    info_callback_handler = CallbackQueryHandler(info_callback, pattern=r"info_callback")
     commands_callback_handler = CallbackQueryHandler(commands_callback, pattern=r"commands")
     stats_callback_handler = CallbackQueryHandler(stats_callback, pattern=r"sys_callback")
 
@@ -327,13 +397,15 @@ def main():
     dispatcher.add_handler(start_handler)
     dispatcher.add_handler(help_handler)
     dispatcher.add_handler(commands_buttons_handler)
+    dispatcher.add_handler(info_callback_handler)
+    dispatcher.add_handler(info_buttons_handler)
     dispatcher.add_handler(commands_callback_handler)
     dispatcher.add_handler(stats_callback_handler)
     dispatcher.add_handler(migrate_handler)
 
     #TODO add webhook feature instead of just long polling
-    dispatcher.run_polling()
+    dispatcher.run_polling(allowed_updates=Update.ALL_TYPES)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     LOGGER.info("Successfully loaded modules: " + str(ALL_MODULES))
     main()
