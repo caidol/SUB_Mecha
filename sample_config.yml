@@ -16,7 +16,7 @@ repository: "https://github.com/caidol/SUB_Mecha"
 env: 
   BOT_TOKEN: 
     description: "The bot token that can be created and retrieved from @BotFather"
-    value: "6073682346:AAG3nZhKlApMcO6NownG7ExWJQrZqV6uXIg"
+    value: "" # remove when committing
     required: true
   
   BOT_USERNAME:

@@ -2,7 +2,7 @@ import os
 from typing import Optional
 
 from src import dispatcher
-from src.core.decorators.chat import user_is_admin, bot_is_admin, can_change_info
+from src.core.decorators.chat import user_is_admin, bot_is_admin, can_change_info, is_not_blacklisted
 
 from telegram import Update, Message
 from telegram.ext import filters, CallbackContext, CommandHandler
@@ -11,6 +11,7 @@ from telegram.constants import ParseMode, FileSizeLimit
 @bot_is_admin
 @user_is_admin
 @can_change_info
+@is_not_blacklisted
 async def set_chat_title(update: Update, context: CallbackContext):
     message: Optional[Message] = update.effective_message
     args = context.args
@@ -31,6 +32,7 @@ async def set_chat_title(update: Update, context: CallbackContext):
 @bot_is_admin
 @user_is_admin
 @can_change_info
+@is_not_blacklisted
 async def set_chat_description(update: Update, context: CallbackContext):
     message: Optional[Message] = update.effective_message
     args = context.args
@@ -52,6 +54,7 @@ async def set_chat_description(update: Update, context: CallbackContext):
 @bot_is_admin
 @user_is_admin
 @can_change_info
+@is_not_blacklisted
 async def set_user_title(update: Update, context: CallbackContext):
     message: Optional[Message] = update.effective_message
     args = context.args
@@ -79,6 +82,7 @@ async def set_user_title(update: Update, context: CallbackContext):
 @bot_is_admin
 @user_is_admin
 @can_change_info
+@is_not_blacklisted
 async def set_chat_photo(update: Update, context: CallbackContext):
     message: Optional[Message] = update.effective_message
 
@@ -97,7 +101,8 @@ async def set_chat_photo(update: Update, context: CallbackContext):
 
     photo_file = await dispatcher.bot.get_file(file.file_id)
     photo = await photo_file.download_to_drive()
-    await message.chat.set_photo(photo)
+    photo_bytes = open(photo, 'rb')
+    await message.chat.set_photo(photo_bytes)
     await message.reply_text("📸 Successfully changed group photo. 📸")
     os.remove(photo)
 

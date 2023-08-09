@@ -8,7 +8,7 @@ from telegram.helpers import mention_html
 from telegram.error import BadRequest, Forbidden
 from telegram.ext import CommandHandler, CallbackQueryHandler, filters, CallbackContext
 from src import dispatcher, DEV_ID
-from src.core.decorators.chat import can_promote, bot_is_admin, user_is_admin, can_invite, can_restrict_members, can_delete_messages
+from src.core.decorators.chat import can_promote, bot_is_admin, user_is_admin, can_invite, can_restrict_members, can_delete_messages, is_not_blacklisted
 from src.core.sql.users_sql import get_name_by_userid 
 from src.utils.extraction import extract_user_and_reason, extract_user_only
 from src.utils.string_handling import time_formatter
@@ -39,6 +39,7 @@ async def list_admins(chat: Chat, chat_id: int):
 @bot_is_admin
 @user_is_admin
 @can_promote
+@is_not_blacklisted
 async def demote(update: Update, context: CallbackContext) -> None:
     BOT_ID = context.bot.id
     message: Optional[Message] = update.effective_message
@@ -94,6 +95,7 @@ async def demote(update: Update, context: CallbackContext) -> None:
 @bot_is_admin
 @user_is_admin
 @can_promote
+@is_not_blacklisted
 async def promote(update: Update, context: CallbackContext) -> None: # This needs to be tested
     BOT_ID = context.bot.id
     message: Optional[Message] = update.effective_message
@@ -187,6 +189,7 @@ async def promote(update: Update, context: CallbackContext) -> None: # This need
 @bot_is_admin
 @user_is_admin
 @can_delete_messages
+@is_not_blacklisted
 async def purge(update: Update, context: CallbackContext) -> None:
     """
     Reply to a certain message and delete every message after that until the
@@ -248,6 +251,7 @@ async def purge(update: Update, context: CallbackContext) -> None:
 @bot_is_admin
 @user_is_admin
 @can_delete_messages
+@is_not_blacklisted
 async def delete(update: Update, context: CallbackContext) -> None:
     """Delete the message that is replied to."""
     message: Optional[Message] = update.effective_message
@@ -262,6 +266,7 @@ async def delete(update: Update, context: CallbackContext) -> None:
 @bot_is_admin
 @user_is_admin
 @can_restrict_members
+@is_not_blacklisted
 async def mute(update: Update, context: CallbackContext) -> None:
     BOT_ID = context.bot.id
     message: Optional[Message] = update.effective_message
@@ -350,6 +355,7 @@ Examples of time values: 5m = 5 minutes, 6h = 6 hours, 3d = 3 days.""",
 @bot_is_admin
 @user_is_admin
 @can_restrict_members
+@is_not_blacklisted
 async def unmute(update: Update, context: CallbackContext) -> None:
     message: Optional[Message] = update.effective_message
     chat: Optional[Chat] = update.effective_chat
@@ -384,6 +390,7 @@ async def unmute(update: Update, context: CallbackContext) -> None:
 # The callback provided by pressing the unmute button below the muted user message
 @bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def unmute_callback(update: Update, context: CallbackContext) -> None:
     message: Optional[Message] = update.effective_message
     chat: Optional[Chat] = update.effective_chat
@@ -427,6 +434,7 @@ async def unmute_callback(update: Update, context: CallbackContext) -> None:
 @bot_is_admin
 @user_is_admin
 @can_invite
+@is_not_blacklisted
 async def invite(update: Update, context: CallbackContext) -> None:
     bot = context.bot
     chat: Optional[Chat] = update.effective_chat
@@ -452,6 +460,7 @@ async def invite(update: Update, context: CallbackContext) -> None:
 @bot_is_admin
 @user_is_admin
 @can_restrict_members
+@is_not_blacklisted
 async def ban(update: Update, context: CallbackContext) -> None: # fix this function
     bot = context.bot
     BOT_ID = bot.id
@@ -560,6 +569,7 @@ The time you will be unbanned after is:\n\n `{datetime.strftime(time_later, "%d 
 @bot_is_admin
 @user_is_admin
 @can_restrict_members
+@is_not_blacklisted
 async def unban(update: Update, context: CallbackContext) -> None:
     message: Optional[Message] = update.effective_message
     chat: Optional[Chat] = update.effective_chat
@@ -608,6 +618,7 @@ async def unban(update: Update, context: CallbackContext) -> None:
 @bot_is_admin
 @user_is_admin
 @can_restrict_members
+@is_not_blacklisted
 async def kick(update: Update, context: CallbackContext) -> None:
     BOT_ID = context.bot.id
     message: Optional[Message] = update.effective_message

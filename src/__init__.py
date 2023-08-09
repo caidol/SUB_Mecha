@@ -4,6 +4,7 @@ import logging
 import time
 import os
 import re
+import asyncio
 from telegram.ext import Application 
 
 from aiohttp import ClientSession
@@ -101,9 +102,10 @@ try:
 except ValueError:
     LOGGER.error("There is no token value for the bot token that can be used to create the bot application.")
     raise Exception("Unable to create the bot application as there is no defined bot token value.")
-
+    
 LOAD = []
 NO_LOAD = []
 BOT_START_TIME = time.time()
 
 aiohttpsession = ClientSession() # Comment for now to address a small issue with this client session not being closed properly
+    

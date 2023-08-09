@@ -12,6 +12,7 @@ from telegram.ext import (
 )
 import src.core.sql.users_sql as users_sql
 from src import LOGGER, DEV_ID, dispatcher
+from src.core.decorators.chat import is_not_blacklisted
 
 USERS_GROUP = 4
 CHAT_GROUP = 5
@@ -50,6 +51,7 @@ def get_user_id(username, chat_id):
                     LOGGER.error("Users: Error extracting User ID.")
     return None
 
+@is_not_blacklisted
 async def broadcast(update: Update, context: CallbackContext):
     LOGGER.info("Users: Broadcasting message.")
     message: Optional[Message] = update.effective_message
@@ -104,6 +106,7 @@ async def broadcast(update: Update, context: CallbackContext):
             f"📡 Broadcast message complete. \nGroups failed `{failed_groups}` \nFailed users `{failed_users}` 📡 "
         )
 
+@is_not_blacklisted
 async def chats(update: Update, context: CallbackContext):
     all_chats = users_sql.get_all_chats() or []
     chatfile = "List of chats.\n0. Chat name | Chat ID | Members count\n"
@@ -185,4 +188,3 @@ dispatcher.add_handler(USER_LOG_HANDLER, USERS_GROUP)
 dispatcher.add_handler(BROADCAST_HANDLER)
 dispatcher.add_handler(CHATLIST_HANDLER)
 dispatcher.add_handler(CHAT_CHECKER_HANDLER, CHAT_GROUP)
-dispatcher.run_polling()

@@ -2,7 +2,7 @@ import html
 from typing import Optional
 import src.core.sql.blacklistusers_sql as user_blacklist_sql
 from src import OWNER_ID, DEV_ID, dispatcher
-from src.core.decorators.chat import user_is_admin
+from src.core.decorators.chat import bot_is_admin, user_is_admin, is_not_blacklisted
 from src.utils.extraction import extract_user_only, extract_user_and_reason
 from telegram import Update, Chat, User, Message
 from telegram.error import BadRequest
@@ -12,7 +12,9 @@ from telegram.constants import ParseMode
 
 UNABLE_TO_BLACKLIST = [OWNER_ID, DEV_ID]
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def blacklist_user(update: Update, context: CallbackContext) -> str:
     message: Optional[Message] = update.effective_message
     user: Optional[User] = update.effective_user
@@ -56,7 +58,9 @@ async def blacklist_user(update: Update, context: CallbackContext) -> str:
     
     return log_message
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def unblacklist_user(update: Update, context: CallbackContext) -> str:
     message: Optional[Message] = update.effective_message
     user: Optional[User] = update.effective_user
@@ -95,7 +99,9 @@ async def unblacklist_user(update: Update, context: CallbackContext) -> str:
         await message.reply_text("This user does not seem to be blacklisted in the first place.")
         return 
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def blacklist_users(update: Update, context: CallbackContext) -> None:
     users = []
     bot = context.bot

@@ -1,7 +1,10 @@
 from src import dispatcher
+from src.core.decorators.chat import is_not_blacklisted
+
 from telegram import Update 
 from telegram.ext import CommandHandler, CallbackContext
 
+@is_not_blacklisted
 async def repo(update: Update, context: CallbackContext):
     link = "https://github.com/caidol/SUB_Mecha"
     await update.message.reply_text(

@@ -2,7 +2,7 @@ from typing import Optional
 
 from src import dispatcher
 from src.utils.extraction import extract_user_only
-from src.core.decorators.chat import bot_is_admin
+from src.core.decorators.chat import bot_is_admin, is_not_blacklisted
 from src.utils.performance import test_speedtest
 
 from telegram import Update, Chat, Message
@@ -10,6 +10,7 @@ from telegram.ext import CallbackContext, CommandHandler, filters
 from telegram.constants import ParseMode
 
 @bot_is_admin
+@is_not_blacklisted
 async def get_user_info(update, context, user_id):
     chat: Optional[Chat] = update.effective_chat
     chat_member = await dispatcher.bot.get_chat_member(chat.id, user_id) 
@@ -38,6 +39,7 @@ async def get_user_info(update, context, user_id):
     return True
 
 @bot_is_admin
+@is_not_blacklisted
 async def get_chat_info(update, context, chat_id):
     chat = await dispatcher.bot.get_chat(chat_id)
 
@@ -64,6 +66,7 @@ async def get_chat_info(update, context, chat_id):
     return True
 
 @bot_is_admin
+@is_not_blacklisted
 async def info(update: Update, context: CallbackContext):
     message: Optional[Message] = update.effective_message
 
@@ -113,6 +116,7 @@ async def info(update: Update, context: CallbackContext):
         )
 
 @bot_is_admin
+@is_not_blacklisted
 async def chat_info(update: Update, context: CallbackContext):
     chat: Optional[Chat] = update.effective_chat
     message: Optional[Message] = update.effective_message
@@ -167,6 +171,8 @@ be the chat ID and not the chat name!
             "Chat information not found"
         )
 
+@bot_is_admin
+@is_not_blacklisted
 async def speedtest(update: Update, context: CallbackContext):
     message: Optional[Message] = update.effective_message
     download, upload, speed_info = await test_speedtest()

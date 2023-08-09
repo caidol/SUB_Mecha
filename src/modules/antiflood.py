@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from src import LOGGER, dispatcher
-from src.core.decorators.chat import user_is_admin, user_admin_check
+from src.core.decorators.chat import bot_is_admin, user_is_admin, user_admin_check, is_not_blacklisted
 from src.core.sql import antiflood_sql
 from src.utils.string_handling import time_formatter
 
@@ -150,7 +150,9 @@ The time you will be unbanned after is:\n\n `{datetime.strftime(time_later, "%d 
             )
         )
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def set_flood(update: Update, context: CallbackContext) -> None:
     chat: Optional[Chat] = update.effective_chat
     user: Optional[User] = update.effective_user
@@ -262,7 +264,9 @@ async def getflood(update: Update, context: CallbackContext) -> None:
             parse_mode=ParseMode.MARKDOWN,
         )
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def set_flood_mode(update: Update, context: CallbackContext):
     chat: Optional[Chat] = update.effective_chat
     user: Optional[User] = update.effective_user

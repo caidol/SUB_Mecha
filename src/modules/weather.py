@@ -5,6 +5,7 @@ import re
 
 from src import LOGGER, OWM_API_TOKEN, dispatcher
 import src.utils.weather_managers as manager
+from src.core.decorators.chat import is_not_blacklisted
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -20,7 +21,7 @@ LOGGER.info("Weather: Started initialisation.")
 
 LOCATION_PARAMETER = range(1)
 
-
+@is_not_blacklisted
 async def request_for_location(update: Update, context: CallbackContext) -> None:
     """entry point to allow the user to specify the location that they wish to send"""
 
@@ -110,7 +111,6 @@ async def retrieve_city_registries(update: Update, context: CallbackContext, api
         LOGGER.info("Weather: Attempting to parse city registry information.")
     except:
         LOGGER.error("Weather: Unable to parse city registry information.")
-    
 
 async def parse_city_registry_information(update: Update, context: CallbackContext) -> None:
     """parse all the registry information of cities with the same name across the world"""
@@ -570,6 +570,7 @@ async def receive_daily_forecast_data(update: Update, context: CallbackContext) 
         LOGGER.info("Weather: Called function to output the forecast data.")
     except:
         LOGGER.error("Weather: Unable to call function to output the forecast data.")
+
 
 async def output_weather_forecast(update: Update, context: CallbackContext) -> None:
     """this is the function that will output the weather forecast for the chosen location"""
