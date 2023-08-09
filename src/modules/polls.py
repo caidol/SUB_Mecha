@@ -1,6 +1,7 @@
 import re
 
 from src import dispatcher, LOGGER, BOT_USERNAME
+from src.core.decorators.chat import is_not_blacklisted
 
 from telegram import ( # telegram module imports
     KeyboardButton, 
@@ -31,7 +32,7 @@ answer_dict = {}
 POLL_QUESTION, POLL_ANSWERS = range(2) # for poll creation
 QUIZ_QUESTION, QUIZ_ANSWERS, CORRECT_ANSWER = range(3) # for quiz creation
 
-
+@is_not_blacklisted
 async def configure_poll(update: Update, context: CallbackContext) -> int: # start poll config
     LOGGER.info("Polls: Poll configuration started.")
     
@@ -52,7 +53,7 @@ async def configure_poll(update: Update, context: CallbackContext) -> int: # sta
 
     return POLL_QUESTION # receive poll question data
 
-
+@is_not_blacklisted
 async def poll_question(update: Update, context: CallbackContext) -> int: # receive poll question
     global poll_question
     poll_question = update.message.text # update message
@@ -72,7 +73,7 @@ async def poll_question(update: Update, context: CallbackContext) -> int: # rece
 
     return POLL_ANSWERS # receive poll answer data
 
-
+@is_not_blacklisted
 async def poll_answers(update: Update, context: CallbackContext) -> int: # receive poll answers
     global poll_answers
     poll_answers = update.message.text # update message
@@ -99,7 +100,7 @@ async def poll_answers(update: Update, context: CallbackContext) -> int: # recei
 
     return ConversationHandler.END # return the end of the conversation
 
-
+@is_not_blacklisted
 async def configure_quiz(update: Update, context: CallbackContext) -> int: # start quiz config
     if str(update.effective_chat.id)[0] == '-':
         keyboard = [[InlineKeyboardButton(text="Run /createQuiz in private chat", url = f"https://t.me/{BOT_USERNAME}")]]
@@ -126,7 +127,7 @@ async def configure_quiz(update: Update, context: CallbackContext) -> int: # sta
 
         return QUIZ_QUESTION # receive quiz question data
 
-
+@is_not_blacklisted
 async def quiz_question(update: Update, context: CallbackContext) -> int: # receive quiz question
     global quiz_question
     quiz_question = update.message.text # update the message
@@ -143,7 +144,7 @@ async def quiz_question(update: Update, context: CallbackContext) -> int: # rece
 
     return QUIZ_ANSWERS # receive quiz answers data
 
-
+@is_not_blacklisted
 async def quiz_answers(update: Update, context: CallbackContext) -> int: # receive quiz answers
     global quiz_answers
     quiz_answers = update.message.text
@@ -169,7 +170,7 @@ async def quiz_answers(update: Update, context: CallbackContext) -> int: # recei
 
     return CORRECT_ANSWER # receive correct quiz answer data
 
-
+@is_not_blacklisted
 async def correct_quiz_answer(update: Update, context: CallbackContext) -> int: # receive correct quiz answer
     bot = context.bot
     correct_answer = update.message.text # update message
@@ -189,7 +190,7 @@ async def correct_quiz_answer(update: Update, context: CallbackContext) -> int: 
 
     return ConversationHandler.END # return the end of the conversation
 
-
+@is_not_blacklisted
 async def cancel_poll(update: Update, context: CallbackContext) -> int: # cancel command
     """Cancels and ends the conversation."""
     user = update.message.from_user # user id
@@ -206,7 +207,7 @@ async def cancel_poll(update: Update, context: CallbackContext) -> int: # cancel
 
     return ConversationHandler.END # return end of the conversation
 
-
+@is_not_blacklisted
 async def poll(update: Update, context: CallbackContext) -> None:
     """Receive the poll information and parse the information into a payload"""    
     for key, value in context.user_data.items():
@@ -239,7 +240,7 @@ async def poll(update: Update, context: CallbackContext) -> None:
     LOGGER.info("Polls: Poll payload information stored in bot_data")
     context.bot_data.update(payload) # update bot data with payload
 
-
+@is_not_blacklisted
 async def receive_poll_answer(update: Update, context: CallbackContext) -> None:
     """Summarize a users poll vote"""
     answer = update.poll_answer # update the poll answer
@@ -277,7 +278,7 @@ async def receive_poll_answer(update: Update, context: CallbackContext) -> None:
         LOGGER.warning("Polls: The poll answers has reached the maximum voter limit.")
         await context.bot.stop_poll(answered_poll["chat_id"], answered_poll["message_id"])
 
-
+@is_not_blacklisted
 async def receive_poll(update: Update, context: CallbackContext) -> None:
     """On receiving polls, reply to it by a closed poll that will copy the received poll"""
     actual_poll = update.effective_message.poll
@@ -296,7 +297,7 @@ async def receive_poll(update: Update, context: CallbackContext) -> None:
     except:
         LOGGER.error("Polls: The closed poll was unable to be sent to chat.")
 
-
+@is_not_blacklisted
 async def quiz(update: Update, context: CallbackContext) -> None: 
     """Sends a quiz with configured data"""
 
@@ -327,7 +328,7 @@ async def quiz(update: Update, context: CallbackContext) -> None:
     LOGGER.info("Polls: Quiz payload information stored in bot_data.")
     context.bot_data.update(payload)
 
-
+@is_not_blacklisted
 async def receive_quiz_answer(update: Update, context: CallbackContext) -> None:
     """Close the quiz after three participants took it."""
     # the bot can receive closed poll updates that we don't care about
@@ -349,6 +350,7 @@ async def receive_quiz_answer(update: Update, context: CallbackContext) -> None:
         except:
             LOGGER.error("Polls: Quiz was unable to be stopped.")
 
+@is_not_blacklisted
 async def preview(update: Update, context: CallbackContext) -> None:
     """Ask user to create a poll and display a preview of it"""
     # using this without a type lets the user to choose whether they want (quiz and a poll)

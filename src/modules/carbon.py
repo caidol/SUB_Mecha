@@ -5,7 +5,9 @@ from telegram.ext import CommandHandler, CallbackContext
 
 from src import dispatcher
 from src.utils.misc import make_carbon
+from src.core.decorators.chat import is_not_blacklisted
 
+@is_not_blacklisted
 async def carbon_func(update: Update, context: CallbackContext):
     message: Optional[Message] = update.effective_message
     if not message.reply_to_message:

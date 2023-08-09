@@ -13,7 +13,7 @@ from telegram.constants import ParseMode
 import src.core.sql.blacklist_sql as blacklist_sql
 from src import dispatcher, LOGGER
 from src.modules.warns import warn
-from src.core.decorators.chat import user_is_admin, user_is_not_admin
+from src.core.decorators.chat import user_is_admin, user_is_not_admin, bot_is_admin, is_not_blacklisted
 from src.utils.extraction import extract_text
 from src.utils.string_handling import time_formatter
 from src.core.decorators.typing import typing_action
@@ -21,8 +21,10 @@ from src.utils.misc import split_message
 
 BLACKLIST_GROUP = 11
 
+@bot_is_admin
 @user_is_admin
 @typing_action
+@is_not_blacklisted
 async def get_blacklist(update: Update, context: CallbackContext) -> None:
     chat: Optional[Chat] = update.effective_chat
     message: Optional[Message] = update.effective_message
@@ -52,9 +54,10 @@ async def get_blacklist(update: Update, context: CallbackContext) -> None:
         
         await context.bot.send_message(chat_id, text=text, parse_mode=ParseMode.HTML)
         
-
+@bot_is_admin
 @user_is_admin
 @typing_action
+@is_not_blacklisted
 async def add_blacklist(update: Update, context: CallbackContext) -> None:
     message: Optional[Message] = update.effective_message
     chat: Optional[Chat] = update.effective_chat
@@ -95,8 +98,10 @@ async def add_blacklist(update: Update, context: CallbackContext) -> None:
             text="Tell me which words you would like to add into the blacklist."
         )
 
+@bot_is_admin
 @user_is_admin
 @typing_action
+@is_not_blacklisted
 async def unblacklist(update: Update, context: CallbackContext) -> None:
     message: Optional[Message] = update.effective_message
     chat: Optional[Chat] = update.effective_chat
@@ -159,8 +164,10 @@ async def unblacklist(update: Update, context: CallbackContext) -> None:
             "Tell me which words you would like to be removed from the blacklist."
         )
 
+@bot_is_admin
 @user_is_admin
 @typing_action
+@is_not_blacklisted
 async def blacklist_mode(update: Update, context: CallbackContext) -> None:
     chat: Optional[Chat] = update.effective_chat
     message: Optional[Message] = update.effective_message

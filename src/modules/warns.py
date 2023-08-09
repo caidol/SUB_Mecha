@@ -10,7 +10,9 @@ from src.core.decorators.chat import (
     can_restrict_members,
     user_admin_check,
     user_is_admin_no_reply,
+    is_not_blacklisted
 )
+
 from src.utils.extraction import extract_text, extract_user_only, extract_user_and_reason
 from src.utils.misc import split_message
 from src.utils.string_handling import remove_quotes
@@ -141,6 +143,7 @@ async def warn(update: Update, context: CallbackContext,
 
 @bot_is_admin
 @user_is_admin_no_reply
+@is_not_blacklisted
 async def button(update: Update, context: CallbackContext) -> str:
     query: Optional[CallbackQuery] = update.callback_query
     user: Optional[User] = update.effective_user
@@ -167,9 +170,10 @@ async def button(update: Update, context: CallbackContext) -> str:
                 "User already has no warns.", parse_mode=ParseMode.HTML
             )
 
-@user_is_admin
 @bot_is_admin
+@user_is_admin
 @can_restrict_members
+@is_not_blacklisted
 async def warn_user(update: Update, context: CallbackContext) -> str:
     args = context.args
     message: Optional[Message] = update.effective_message
@@ -207,9 +211,9 @@ async def warn_user(update: Update, context: CallbackContext) -> str:
     #TODO maybe write a log message to return
     return ""
         
-
-@user_is_admin
 @bot_is_admin
+@user_is_admin
+@is_not_blacklisted
 async def reset_warns(update: Update, context: CallbackContext) -> str:
     args = context.args 
     message: Optional[Message] = update.effective_message
@@ -233,6 +237,7 @@ async def reset_warns(update: Update, context: CallbackContext) -> str:
     #TODO can add log message
     return ""
 
+@is_not_blacklisted
 async def get_warns(update: Update, context: CallbackContext) -> None:
     message: Optional[Message] = update.effective_message 
     chat: Optional[Chat] = update.effective_chat
@@ -260,7 +265,9 @@ async def get_warns(update: Update, context: CallbackContext) -> None:
     else:
         await message.reply_text("This user does not have any warns!")
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def add_warn_filter(update: Update, context: CallbackContext) -> None:
     chat: Optional[Chat] = update.effective_chat
     message: Optional[Message] = update.effective_message
@@ -286,7 +293,9 @@ async def add_warn_filter(update: Update, context: CallbackContext) -> None:
 
     await update.effective_message.reply_text("🚨 Warn handler added for {} 🚨".format(keyword))
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def remove_warn_filter(update: Update, context: CallbackContext) -> None:
     chat: Optional[Chat] = update.effective_chat
     message: Optional[Message] = update.effective_message
@@ -323,6 +332,7 @@ async def remove_warn_filter(update: Update, context: CallbackContext) -> None:
     await message.reply_text("Warning filter was not found in chat filters.")
     return
 
+@is_not_blacklisted
 async def warn_list(update: Update, context: CallbackContext) -> str:
     chat: Optional[Chat] = update.effective_chat
     all_triggers = warns_sql.get_chat_warn_triggers(chat.id)
@@ -369,7 +379,9 @@ async def reply_filter(update: Update, context: CallbackContext) -> str:
                 return await warn(update, context, user, chat, warn_filter.reply, message)
     return ""
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def set_warn_limit(update: Update, context: CallbackContext) -> str:
     message: Optional[Message] = update.effective_message
     chat: Optional[Chat] = update.effective_chat
@@ -401,7 +413,9 @@ async def set_warn_limit(update: Update, context: CallbackContext) -> str:
         )
     return ""
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def set_warn_severity(update: Update, context: CallbackContext) -> str:
     user: Optional[User] = update.effective_user
     chat: Optional[Chat] = update.effective_chat

@@ -4,11 +4,12 @@ from telegram import Update, Chat, Message
 from telegram.ext import CallbackContext, CommandHandler, filters
 from telegram.error import BadRequest
 from src import LOGGER, dispatcher
-from src.core.decorators.chat import bot_is_admin, user_is_admin, can_pin
+from src.core.decorators.chat import bot_is_admin, user_is_admin, can_pin, is_not_blacklisted
 
 @bot_is_admin
 @user_is_admin
 @can_pin
+@is_not_blacklisted
 async def pin(update: Update, context: CallbackContext) -> None:
     args = context.args 
     chat: Optional[Chat] = update.effective_chat
@@ -37,6 +38,7 @@ async def pin(update: Update, context: CallbackContext) -> None:
 @bot_is_admin
 @user_is_admin
 @can_pin
+@is_not_blacklisted
 async def unpin(update: Update, context: CallbackContext) -> None:
     message: Optional[Message] = update.effective_message
     previous_message = message.reply_to_message

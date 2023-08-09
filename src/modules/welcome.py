@@ -14,7 +14,7 @@ from telegram.helpers import escape_markdown, mention_html, mention_markdown
 
 from src.core.sql import welcome_sql as welcome_sql
 from src import dispatcher, LOGGER, OWNER_ID, DEV_ID
-from src.core.decorators.chat import user_is_admin, user_is_ban_protected  
+from src.core.decorators.chat import bot_is_admin, user_is_admin, user_is_ban_protected, is_not_blacklisted
 from src.utils.misc import revert_buttons, build_keyboard
 from src.utils.msg_types import get_welcome_type
 from src.utils.string_handling import markdown_parser, escape_invalid_curly_brackets
@@ -620,7 +620,10 @@ async def left_member(update: Update, context: CallbackContext):
 
                 if sent:
                     welcome_sql.set_clean_goodbye(chat.id, sent.message_id)
+
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def welcome(update: Update, context: CallbackContext):
     args = context.args
     chat: Optional[Chat] = update.effective_chat
@@ -678,7 +681,9 @@ async def welcome(update: Update, context: CallbackContext):
                 "I only understand 'on/yes' or 'off/no'!"
             )
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def goodbye(update: Update, context: CallbackContext):
     args = context.args
     chat: Optional[Chat] = update.effective_chat
@@ -726,7 +731,9 @@ async def goodbye(update: Update, context: CallbackContext):
                 "I only understand 'on/yes' or 'off/no'!"
             )
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def set_welcome(update: Update, context: CallbackContext) -> str:
     chat: Optional[Chat] = update.effective_chat
     user: Optional[User] = update.effective_user
@@ -749,7 +756,9 @@ async def set_welcome(update: Update, context: CallbackContext) -> str:
         f"Set the welcome message"
     )
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def reset_welcome(update: Update, context: CallbackContext) -> str:
     chat: Optional[Chat] = update.effective_chat
     user: Optional[User] = update.effective_user
@@ -766,7 +775,9 @@ async def reset_welcome(update: Update, context: CallbackContext) -> str:
         f"Reset the welcome message to default."
     )
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def set_goodbye(update: Update, context: CallbackContext) -> str:
     chat: Optional[Chat] = update.effective_chat
     user: Optional[User] = update.effective_user
@@ -794,7 +805,9 @@ async def set_goodbye(update: Update, context: CallbackContext) -> str:
             "You must provide the word or phrase you would like the goodbye message to have."
         )
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def reset_goodbye(update: Update, context: CallbackContext) -> str:
     chat: Optional[Chat] = update.effective_chat
     user: Optional[User] = update.effective_user
@@ -811,7 +824,9 @@ async def reset_goodbye(update: Update, context: CallbackContext) -> str:
         f"Reset the goodbye message."
     )
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def welcomemute(update: Update, context: CallbackContext) -> str:
     args = context.args 
     chat: Optional[Chat] = update.effective_chat
@@ -884,7 +899,9 @@ async def welcomemute(update: Update, context: CallbackContext) -> str:
 
     return ""
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def clean_welcome(update: Update, context: CallbackContext) -> str:
     args = context.args 
     chat: Optional[Chat] = update.effective_chat
@@ -926,7 +943,9 @@ async def clean_welcome(update: Update, context: CallbackContext) -> str:
         await update.effective_message.reply_text("I understand 'on/yes' or 'off/no' only.")
         return ""
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def clean_goodbye(update: Update, context: CallbackContext) -> str: 
     args = context.args 
     chat: Optional[Chat] = update.effective_chat
@@ -965,7 +984,9 @@ async def clean_goodbye(update: Update, context: CallbackContext) -> str:
             f"Has toggled clean goodbyes to <code>OFF</code>"
         )
 
+@bot_is_admin
 @user_is_admin
+@is_not_blacklisted
 async def cleanservice(update: Update, context: CallbackContext) -> str:
     args = context.args 
     chat: Optional[Chat] = update.effective_chat

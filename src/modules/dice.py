@@ -4,7 +4,6 @@ from src import dispatcher, LOGGER
 from src.core.decorators.chat import is_not_blacklisted
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, constants
 from telegram.ext import CommandHandler, CallbackQueryHandler, CallbackContext
-from telegram.constants import DiceEmoji
 
 LOGGER.info("Dice Module: Started initialisation.")
 __module_name__ = "Dice"
@@ -46,6 +45,7 @@ KEYBOARD = [
         ]
     ]
 
+@is_not_blacklisted
 async def help(update: Update, context: None) -> None:
     message_id = update.effective_message.id
     try:
@@ -54,6 +54,7 @@ async def help(update: Update, context: None) -> None:
     except:
         LOGGER.error("Dice Module: Unable to send dice help information.")
 
+@is_not_blacklisted
 async def choose_dice_option(update: Update, context: None) -> None:
     reply_markup = InlineKeyboardMarkup(KEYBOARD)
 
@@ -63,6 +64,7 @@ async def choose_dice_option(update: Update, context: None) -> None:
     except:
         LOGGER.error("Dice Module: Inline keyboard for dice option sent unsuccessfully.")
 
+@is_not_blacklisted
 async def roll_dice(update: Update, context: CallbackContext) -> None:
     chat_id = update.effective_chat.id
     query = update.callback_query
