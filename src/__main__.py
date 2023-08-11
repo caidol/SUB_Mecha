@@ -1,5 +1,4 @@
 import importlib # for dynamically importing modules
-import asyncio
 import re
 from typing import Optional
 

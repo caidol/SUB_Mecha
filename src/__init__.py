@@ -17,6 +17,7 @@ else:
     PROGRAM_PATH = PROGRAM_PATH.group(1) # Regex pattern ensures that the path is only up to the src folder no matter the location
 
 PROGRAM_PATH = f"{PROGRAM_PATH}/"
+#print("PROGRAM PATH: ", PROGRAM_PATH)
 
 # Enable logging
 logging.basicConfig(
@@ -50,9 +51,7 @@ def check_python_telegram_version():
 def read_yaml_data(filename):
     if check_python_telegram_version():
         try:
-            #with open(f'{PROGRAM_PATH}/{filename}.yml', 'r') as file:
-            #with open('/home/ai-dan/Documents/Projects/SUB_Mecha/config.yml', 'r') as file:
-            with open(f'/{PROGRAM_PATH}/{filename}.yml', 'r') as file:
+            with open(f'/{PROGRAM_PATH}/{filename}.yml', 'r') as file: #TODO fix to work with docker
                 output = yaml.safe_load(file)
 
             return output
