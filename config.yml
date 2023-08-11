@@ -49,8 +49,8 @@ env:
     value: ""
     required: true
 
-  DATABASE_URL:
-    description: "The database URL for the sqllite3 database."
-    value: "" # keep it temporary for now
+  USING_HEROKU:
+    description: "A bool value stating whether or not docker should be implemented in the program."
+    value: false # False by default
     required: true
 ...

@@ -16,7 +16,7 @@ repository: "https://github.com/caidol/SUB_Mecha"
 env: 
   BOT_TOKEN: 
     description: "The bot token that can be created and retrieved from @BotFather"
-    value: "" # remove when committing
+    value: "6073682346:AAHWMtFLWmk5MTZC1-L7ilMH5Yjb04VJGdU" # remove when committing
     required: true
   
   BOT_USERNAME:
@@ -47,5 +47,10 @@ env:
   OWM_API_TOKEN:
     description: "The Open Weather Map API token in order to access weather data."
     value: "94bcb94a4dc94f8116c87a8d4d105dc7"
+    required: true
+
+  USING_HEROKU:
+    description: "A bool value stating whether or not docker should be implemented in the program."
+    value: false # False by default
     required: true
 ...
