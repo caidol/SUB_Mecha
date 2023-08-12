@@ -15,12 +15,12 @@ repository: "https://github.com/caidol/SUB_Mecha"
 
 env: 
   BOT_TOKEN: 
-    description: "The bot token that can be created and retrieved from @BotFather"
+    description: "The bot token that can be created and retrieved from @BotFather."
     value: ""
     required: true
   
   BOT_USERNAME:
-    description: "The username that you have created for your bot"
+    description: "The username that you have created for your bot."
     value: ""
     required: true
 
@@ -30,27 +30,17 @@ env:
    required: true
 
   OWNER_ID:
-    description: "The telegram id of the owner of the bot"
+    description: "The Telegram ID of the owner of the bot."
     value: ""
     required: true # might need to change this
 
   OWNER_USERNAME: 
-    description: "Your telegram username"
+    description: "Your Telegram username."
     value: ""
     required: true
-
-  HEROKU_URL:
-    description: "The Heroku App URL --> Format is https://<appname>.herokuapp.com/"
-    value: ""
-    required: false
 
   OWM_API_TOKEN:
     description: "The Open Weather Map API token in order to access weather data."
     value: ""
-    required: true
-
-  USING_HEROKU:
-    description: "A bool value stating whether or not docker should be implemented in the program."
-    value: false # False by default
     required: true
 ...
