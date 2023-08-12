@@ -101,7 +101,7 @@ ai-dan@fedora~$ unzip -D {zip_filename}
 ai-dan@fedora~$ cd {unzipped_file}
 ```
 
-From here you can run the same methods as explained above to run the bot. When you close the web application then you notice that the bot will still be running.
+From here you can use the manual method as explained above to run the bot. When you close the web application then you notice that the bot will still be running.
 
 ***
 ***
