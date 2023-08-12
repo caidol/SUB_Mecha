@@ -81,7 +81,6 @@ if ENV:
         OWNER_USERNAME = ENV['OWNER_USERNAME']['value']
         BOT_NAME = ENV['BOT_NAME']['value']
         BOT_USERNAME = ENV['BOT_USERNAME']['value']
-        HEROKU_URL = ENV['HEROKU_URL']['value']
         OWM_API_TOKEN = ENV['OWM_API_TOKEN']['value']
         DATABASE_URL = f"sqlite:///{PROGRAM_PATH}/src/core/sql/database/database.db" # "sqlite:///database.db"
     except ValueError:
