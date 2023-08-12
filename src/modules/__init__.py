@@ -15,8 +15,6 @@ from src import LOAD, NO_LOAD, LOGGER
     are for utility based features (e.g weather)
 ---------------------------------------------------
 '''
-#TODO should perform some testing on this helper file
-
 
 def __generate_module_list():
     # this function will generate a list of all the modules in the modules folder

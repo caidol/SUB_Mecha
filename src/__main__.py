@@ -402,7 +402,6 @@ def main():
     dispatcher.add_handler(stats_callback_handler)
     dispatcher.add_handler(migrate_handler)
 
-    #TODO add webhook feature instead of just long polling
     dispatcher.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':

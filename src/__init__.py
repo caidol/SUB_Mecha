@@ -4,7 +4,6 @@ import logging
 import time
 import os
 import re
-import asyncio
 from telegram.ext import Application 
 
 from aiohttp import ClientSession
@@ -26,7 +25,7 @@ logging.basicConfig(
 
 LOGGER = logging.getLogger(__name__)
 
-CONFIG_FILENAME = "sample_config" #TODO change to config when finished with project
+CONFIG_FILENAME = "config"
 
 # Check python version
 if sys.version_info[0] < 3 or sys.version_info[1] < 6:
@@ -51,7 +50,7 @@ def check_python_telegram_version():
 def read_yaml_data(filename):
     if check_python_telegram_version():
         try:
-            with open(f'/{PROGRAM_PATH}/{filename}.yml', 'r') as file: #TODO fix to work with docker
+            with open(f'/{PROGRAM_PATH}/{filename}.yml', 'r') as file:
                 output = yaml.safe_load(file)
 
             return output

@@ -208,7 +208,6 @@ async def warn_user(update: Update, context: CallbackContext) -> str:
             )
     else:
         await message.reply_text("I'm afraid that this user is invalid.")
-    #TODO maybe write a log message to return
     return ""
         
 @bot_is_admin
@@ -234,7 +233,6 @@ async def reset_warns(update: Update, context: CallbackContext) -> str:
         )
     else:
         await message.reply_text("No user has been designated!")
-    #TODO can add log message
     return ""
 
 @is_not_blacklisted
