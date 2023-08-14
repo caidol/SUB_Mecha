@@ -78,7 +78,7 @@ aidan@fedora~$ sudo docker run {container-name}
 
 ## **Deploy to cloud**
 
-This program uses ![PythonAnywhere](https://www.pythonanywhere.com/) which is simple to set up and great for running small Python programs with its free plan. 
+This program uses ![PythonAnywhere](https://www.pythonanywhere.com/) which is simple to set up and great for running small Python programs with its free or paid plans. 
 
 Ensure that you have created an account on PythonAnywhere and at least used their free plan, otherwise other plans work just fine
 and could provide better processing power.
@@ -101,7 +101,7 @@ ai-dan@fedora~$ unzip -D {zip_filename}
 ai-dan@fedora~$ cd {unzipped_file}
 ```
 
-From here you can use the manual method as explained above to run the bot. When you close the web application then you notice that the bot will still be running.
+From here you can use the manual method as explained above to run the bot. When you close the web application then you notice that the bot will still be running. **Note that if you use PythonAnywhere with a free plan then you can only run the bot for a limited amount of time as the server bounces and resets. To resolve this you should note when the bot will reset and then run the program again. Otherwise, you should get a paid plan of PythonAnywhere to run the bot infinitely.**
 
 ***
 ***
