@@ -16,7 +16,7 @@ httpx==0.24.1
 idna==3.4
 multicolorcaptcha==1.2.0
 multidict==6.0.4
-Pillow==10.0.0
+Pillow==10.0.1
 psutil==5.9.5
 pyowm==3.3.0
 PySocks==1.7.1
@@ -31,5 +31,5 @@ SQLAlchemy==2.0.19
 SQLAlchemy-Utils==0.41.1
 typing_extensions==4.7.1
 tzlocal==5.0.1
-urllib3==2.0.4
+urllib3==2.0.6
 yarl==1.9.2
